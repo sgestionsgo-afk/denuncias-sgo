@@ -132,7 +132,7 @@ function AdminPanel() {
                 <th>Fecha</th>
                 <th>Barrio</th>
                 <th>Denuncia</th>
-                <th>Ubicación</th>
+                <th>Coordenadas Exactas</th>
               </tr>
             </thead>
             <tbody>
@@ -144,15 +144,21 @@ function AdminPanel() {
                   <td className="col-denuncia">{d.denuncia}</td>
                   <td className="col-ubicacion">
                     {d.lat && d.lng ? (
-                      <a
-                        href={`https://www.google.com/maps?q=${d.lat},${d.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        📍 Ver en mapa
-                      </a>
+                      <>
+                        <div className="coords-display">
+                          <strong>Lat:</strong> {parseFloat(d.lat).toFixed(4)} | <strong>Lng:</strong> {parseFloat(d.lng).toFixed(4)}
+                        </div>
+                        <a
+                          href={`https://www.google.com/maps?q=${d.lat},${d.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ marginTop: "0.5rem", display: "inline-block" }}
+                        >
+                          📍 Abrir en Google Maps
+                        </a>
+                      </>
                     ) : (
-                      <span className="sin-ubicacion">Sin ubicación</span>
+                      <span className="sin-ubicacion">Sin ubicación exacta</span>
                     )}
                   </td>
                 </tr>

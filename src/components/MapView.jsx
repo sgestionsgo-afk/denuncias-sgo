@@ -77,21 +77,14 @@ function MapView() {
     });
 
     denuncias.forEach((d) => {
-      // Si la denuncia tiene coordenadas, usarlas
-      let latitud = parseFloat(d.lat);
-      let longitud = parseFloat(d.lng);
+      // PRIVACIDAD: Usar ubicación aleatoria dentro del rango del barrio
+      // NUNCA mostrar coordenadas exactas en el mapa público
+      const barrioInfo = BARRIOS.find((b) => b.nombre === d.barrio);
+      if (!barrioInfo) return; // Sin barrio válido, no mostrar
 
-      // Si no tiene coords, buscar las del barrio
-      if (isNaN(latitud) || isNaN(longitud)) {
-        const barrioInfo = BARRIOS.find((b) => b.nombre === d.barrio);
-        if (barrioInfo) {
-          // Agregar algo de variación para que no se apilen todos
-          latitud = barrioInfo.lat + (Math.random() - 0.5) * 0.005;
-          longitud = barrioInfo.lng + (Math.random() - 0.5) * 0.005;
-        } else {
-          return; // Sin ubicación, no podemos mostrar en el mapa
-        }
-      }
+      // Generar ubicación aleatoria en rango del barrio (±0.01 en lat/lng ≈ 1km)
+      const latitud = barrioInfo.lat + (Math.random() - 0.5) * 0.015;
+      const longitud = barrioInfo.lng + (Math.random() - 0.5) * 0.015;
 
       // Marcador rojo brillante — solo barrio (sin información privada)
       const marker = L.circleMarker([latitud, longitud], {
@@ -110,7 +103,8 @@ function MapView() {
         markerElement.style.animation = "pulse-red 2s infinite";
       }
       
-      marker.bindPopup(`<strong>Barrio:</strong> ${sanitizarTexto(d.barrio)}`);
+      // Popup solo con barrio (sin ubicación exacta)
+      marker.bindPopup(`<strong>Barrio:</strong> ${sanitizarTexto(d.barrio)}<br/><small style="opacity: 0.7">Ubicación aproximada por privacidad</small>`);
       cluster.addLayer(marker);
     });
 
@@ -137,6 +131,14 @@ function MapView() {
       <p className="map-subtitulo">
         Se muestran solo las ubicaciones y cantidades. Los detalles son privados.
       </p>
+
+      {/* Información sobre privacidad */}
+      <div className="privacy-notice">
+        <p>
+          <strong>🔒 Privacidad garantizada:</strong> Las ubicaciones mostradas son <strong>aproximadas</strong> dentro del barrio. 
+          Los puntos rojos marcan el sector general, no el lugar exacto de la denuncia. Esto protege la privacidad de quien reporta el problema.
+        </p>
+      </div>
 
       {cargando && <p className="cargando">Cargando denuncias...</p>}
       {error && <p className="mensaje mensaje-error">{error}</p>}
