@@ -99,6 +99,15 @@ function ReportForm() {
 
   return (
     <div className="form-container">
+      {/* Logo de La Libertad Avanza */}
+      <div className="form-logo-container">
+        <img 
+          src="/assets/logo lla.png" 
+          alt="Logo La Libertad Avanza" 
+          className="form-logo"
+        />
+      </div>
+
       <h2>📝 Reportar un problema en la vía pública</h2>
       <p className="form-subtitulo">
         Tu denuncia es anónima. Los detalles <strong>no</strong> se muestran públicamente.
