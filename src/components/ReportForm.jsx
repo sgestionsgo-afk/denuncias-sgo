@@ -100,6 +100,7 @@ function ReportForm() {
       lat: lat || "",
       lng: lng || "",
       fecha: new Date().toISOString(),
+      fotoBase64: fotoPreview || "", // Enviar foto en base64
     };
 
     try {
@@ -113,11 +114,13 @@ function ReportForm() {
       // Google Apps Script redirige, así que aceptamos cualquier respuesta OK
       if (respuesta.ok || respuesta.redirected) {
         setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
-        // Limpiar formulario
+        // Limpiar formulario incluyendo foto
         setBarrio("");
         setDenuncia("");
         setLat("");
         setLng("");
+        setFoto(null);
+        setFotoPreview("");
       } else {
         throw new Error("Respuesta no exitosa");
       }
@@ -178,24 +181,6 @@ function ReportForm() {
         />
         <small>{denuncia.length}/1000 caracteres</small>
 
-        {/* --- Geolocalización opcional --- */}
-        <div className="geo-section">
-          <label>Ubicación (opcional)</label>
-          <button
-            type="button"
-            className="btn-geo"
-            onClick={capturarUbicacion}
-          >
-            📍 Capturar mi ubicación
-          </button>
-          {lat && lng && (
-            <p className="geo-info">
-              Ubicación capturada: {lat}, {lng}
-            </p>
-          )}
-          {geoError && <p className="geo-error">{geoError}</p>}
-        </div>
-
         {/* --- Subida de foto opcional --- */}
         <div className="foto-section">
           <label htmlFor="foto">📸 Foto de la situación (opcional)</label>
@@ -224,6 +209,24 @@ function ReportForm() {
             </div>
           )}
           <small>Máximo 5MB. Formatos: JPG, PNG, WebP</small>
+        </div>
+
+        {/* --- Geolocalización opcional --- */}
+        <div className="geo-section">
+          <label>Ubicación (opcional)</label>
+          <button
+            type="button"
+            className="btn-geo"
+            onClick={capturarUbicacion}
+          >
+            📍 Capturar mi ubicación
+          </button>
+          {lat && lng && (
+            <p className="geo-info">
+              Ubicación capturada: {lat}, {lng}
+            </p>
+          )}
+          {geoError && <p className="geo-error">{geoError}</p>}
         </div>
 
         {/* --- Mensajes de estado --- */}
