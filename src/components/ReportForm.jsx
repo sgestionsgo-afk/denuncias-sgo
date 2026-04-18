@@ -13,6 +13,8 @@ function ReportForm() {
   const [denuncia, setDenuncia] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [foto, setFoto] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
   const [geoError, setGeoError] = useState("");
@@ -35,6 +37,39 @@ function ReportForm() {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  // --- Manejar subida de foto ---
+  const manejarFoto = (e) => {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    // Validar tipo de archivo
+    if (!archivo.type.startsWith("image/")) {
+      setMensaje({ tipo: "error", texto: "Por favor selecciona una imagen." });
+      return;
+    }
+
+    // Validar tamaño (máx 5MB)
+    if (archivo.size > 5 * 1024 * 1024) {
+      setMensaje({ tipo: "error", texto: "La imagen no puede superar 5MB." });
+      return;
+    }
+
+    setFoto(archivo);
+
+    // Crear preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setFotoPreview(event.target?.result || "");
+    };
+    reader.readAsDataURL(archivo);
+  };
+
+  // --- Limpiar foto ---
+  const limpiarFoto = () => {
+    setFoto(null);
+    setFotoPreview("");
   };
 
   // --- Enviar denuncia a Google Apps Script ---
@@ -108,7 +143,7 @@ function ReportForm() {
         />
       </div>
 
-      <h2>📝 Reportar un problema en la vía pública</h2>
+      <h2>📝 Reportar un problema en tu zona/barrio</h2>
       <p className="form-subtitulo">
         Tu denuncia es anónima. Los detalles <strong>no</strong> se muestran públicamente.
       </p>
@@ -159,6 +194,36 @@ function ReportForm() {
             </p>
           )}
           {geoError && <p className="geo-error">{geoError}</p>}
+        </div>
+
+        {/* --- Subida de foto opcional --- */}
+        <div className="foto-section">
+          <label htmlFor="foto">📸 Foto de la situación (opcional)</label>
+          <div className="foto-input-wrapper">
+            <input
+              type="file"
+              id="foto"
+              accept="image/*"
+              onChange={manejarFoto}
+              className="foto-input"
+            />
+            <label htmlFor="foto" className="foto-label">
+              Seleccionar imagen
+            </label>
+          </div>
+          {fotoPreview && (
+            <div className="foto-preview">
+              <img src={fotoPreview} alt="Vista previa" className="preview-img"/>
+              <button
+                type="button"
+                className="btn-limpiar-foto"
+                onClick={limpiarFoto}
+              >
+                ✕ Quitar foto
+              </button>
+            </div>
+          )}
+          <small>Máximo 5MB. Formatos: JPG, PNG, WebP</small>
         </div>
 
         {/* --- Mensajes de estado --- */}
