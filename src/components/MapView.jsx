@@ -93,15 +93,23 @@ function MapView() {
         }
       }
 
-      // Marcador violeta — solo barrio (sin información privada)
+      // Marcador rojo brillante — solo barrio (sin información privada)
       const marker = L.circleMarker([latitud, longitud], {
-        radius: 8,
-        fillColor: "#7B2CBF",
-        color: "#5A1F8E",
-        weight: 2,
-        opacity: 0.9,
-        fillOpacity: 0.7,
+        radius: 5,
+        fillColor: "#FF2E57",
+        color: "#CC0033",
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.95,
       });
+      
+      // Efecto de brillo añadido dinámicamente
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.style.filter = "drop-shadow(0 0 8px #FF2E57) drop-shadow(0 0 12px rgba(255, 46, 87, 0.6))";
+        markerElement.style.animation = "pulse-red 2s infinite";
+      }
+      
       marker.bindPopup(`<strong>Barrio:</strong> ${sanitizarTexto(d.barrio)}`);
       cluster.addLayer(marker);
     });

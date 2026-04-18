@@ -942,3 +942,16 @@ body {
 .opacity-secondary {
   color: var(--color-text-secondary);
 }
+
+/* --------- ANIMACIÓN DE BRILLO ROJO PARA MARCADORES --------- */
+@keyframes pulse-red {
+  0% {
+    filter: drop-shadow(0 0 8px #FF2E57) drop-shadow(0 0 12px rgba(255, 46, 87, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px #FF2E57) drop-shadow(0 0 20px rgba(255, 46, 87, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0 0 8px #FF2E57) drop-shadow(0 0 12px rgba(255, 46, 87, 0.6));
+  }
+}
