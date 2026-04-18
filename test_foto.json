@@ -1,8 +1,8 @@
 {
   "barrio": "Centro",
-  "denuncia": "Prueba desde archivo JSON con foto base64",
-  "lat": "",
-  "lng": "",
-  "fecha": "2026-04-18T16:25:00Z",
-  "fotoBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNgGAWjYBSMgpEx8ABAANMQBPOljRIxAAAAAElFTkSuQmCC"
+  "denuncia": "Prueba POST final con foto base64",
+  "lat": "-27.7834",
+  "lng": "-64.2642",
+  "fecha": "2026-04-18T16:45:00Z",
+  "fotoBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9QwwAMRKGMEgAAAv4D/QqAzrLJAwAAAABJRU5ErkJggg=="
 }
