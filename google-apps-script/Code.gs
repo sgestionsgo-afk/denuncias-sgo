@@ -73,8 +73,32 @@ function doGet(e) {
 // --- Manejar peticiones POST (nueva denuncia) ---
 function doPost(e) {
   try {
+    // DEBUG: Log todo lo que recibimos
+    Logger.log("=== INICIO doPost ===");
+    Logger.log("postData type: " + typeof e.postData);
+    Logger.log("postData.contents length: " + e.postData.contents.length);
+    Logger.log("postData.contents primeros 200 chars: " + e.postData.contents.substring(0, 200));
+    
     // Parsear datos del cuerpo de la petición
     const datos = JSON.parse(e.postData.contents);
+    
+    // DEBUG: Loguear qué recibimos después de parsear
+    Logger.log("=== DATOS PARSEADOS ===");
+    Logger.log("Keys en datos: " + Object.keys(datos).join(", "));
+    Logger.log("Barrio: " + datos.barrio);
+    Logger.log("Denuncia: " + datos.denuncia);
+    Logger.log("Tipo fotoBase64: " + typeof datos.fotoBase64);
+    Logger.log("fotoBase64 es undefined: " + (datos.fotoBase64 === undefined));
+    Logger.log("fotoBase64 es null: " + (datos.fotoBase64 === null));
+    Logger.log("fotoBase64 === '': " + (datos.fotoBase64 === ""));
+    Logger.log("fotoBase64 length: " + (datos.fotoBase64 ? datos.fotoBase64.length : "N/A"));
+    
+    if (datos.fotoBase64) {
+      Logger.log("✓ Tiene fotoBase64 (truthy)");
+      Logger.log("fotoBase64 starts with: " + datos.fotoBase64.substring(0, 80));
+    } else {
+      Logger.log("✗ NO tiene fotoBase64 (falsy)");
+    }
 
     // Validar campos requeridos
     if (!datos.barrio || !datos.denuncia) {
@@ -90,16 +114,40 @@ function doPost(e) {
     
     // Procesar foto si existe (base64)
     let urlFoto = "";
-    if (datos.fotoBase64) {
+    Logger.log("=== PROCESANDO FOTO ===");
+    
+    // Verificar si fotoBase64 existe Y tiene datos
+    const tieneFoto = datos.hasOwnProperty("fotoBase64") && 
+                      datos.fotoBase64 && 
+                      datos.fotoBase64.length > 0 &&
+                      datos.fotoBase64.startsWith("data:");
+    
+    Logger.log("Tiene propiedad fotoBase64: " + datos.hasOwnProperty("fotoBase64"));
+    Logger.log("Valor fotoBase64: " + (datos.fotoBase64 ? "truthy" : "falsy"));
+    Logger.log("Tipo de fotoBase64: " + typeof datos.fotoBase64);
+    Logger.log("¿Comienza con data:? " + (datos.fotoBase64 ? datos.fotoBase64.startsWith("data:") : "N/A"));
+    Logger.log("tieneFoto final: " + tieneFoto);
+    
+    if (tieneFoto) {
       try {
+        Logger.log("→ Intentando guardar foto...");
+        Logger.log("  fotoBase64 length: " + datos.fotoBase64.length);
+        Logger.log("  fotoBase64 first 100 chars: " + datos.fotoBase64.substring(0, 100));
+        
         urlFoto = guardarFotoEnDrive(datos.fotoBase64, barrio, fecha);
+        Logger.log("✓ Foto guardada: " + urlFoto);
       } catch (fotoError) {
-        Logger.log("Error guardando foto: " + fotoError.message);
-        // Continuar sin foto si hay error
-        urlFoto = "Error al guardar foto";
+        Logger.log("✗ Error guardando foto: " + fotoError.message);
+        Logger.log("Stack trace: " + fotoError.stack);
+        // Continuar sin foto
+        urlFoto = "";
       }
+    } else {
+      Logger.log("✗ No hay foto para guardar");
     }
 
+    Logger.log("urlFoto final: '" + urlFoto + "' (length: " + urlFoto.length + ")");
+    
     // Obtener la hoja
     const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
 
@@ -108,14 +156,21 @@ function doPost(e) {
     }
 
     // Agregar fila con los datos (ahora con la foto en columna F)
-    hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto]);
+    const fila = [fecha, barrio, denuncia, lat, lng, urlFoto];
+    Logger.log("Agregando fila: " + JSON.stringify(fila).substring(0, 200));
+    hoja.appendRow(fila);
+    Logger.log("✓ Fila agregada exitosamente");
 
+    Logger.log("=== FIN doPost ===");
     return respuestaJSON({ 
       resultado: "ok", 
       mensaje: "Denuncia guardada correctamente",
-      fotoGuardada: urlFoto ? true : false
+      fotoGuardada: urlFoto ? true : false,
+      fotoLength: urlFoto.length
     });
   } catch (error) {
+    Logger.log("✗✗✗ EXCEPCION EN doPost: " + error.message);
+    Logger.log("Stack: " + error.stack);
     return respuestaJSON({ error: "Error al procesar: " + error.message });
   }
 }

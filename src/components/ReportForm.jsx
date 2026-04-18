@@ -100,8 +100,23 @@ function ReportForm() {
       lat: lat || "",
       lng: lng || "",
       fecha: new Date().toISOString(),
-      fotoBase64: fotoPreview || "", // Enviar foto en base64
     };
+    
+    // IMPORTANTE: Solo agregar fotoBase64 si hay foto
+    // Esto evita enviar strings vacías que son falsy en JavaScript
+    if (fotoPreview && fotoPreview.startsWith("data:")) {
+      datos.fotoBase64 = fotoPreview;
+    }
+
+    // DEBUG: Log para ver qué se envía
+    console.log("=== ENVIANDO DENUNCIA ===");
+    console.log("Barrio:", datos.barrio);
+    console.log("Denuncia length:", datos.denuncia.length);
+    console.log("Tiene foto:", datos.fotoBase64 ? true : false);
+    if (datos.fotoBase64) {
+      console.log("fotoBase64 length:", datos.fotoBase64.length);
+      console.log("fotoBase64 starts with:", datos.fotoBase64.substring(0, 60));
+    }
 
     try {
       // Enviamos como POST al Google Apps Script
