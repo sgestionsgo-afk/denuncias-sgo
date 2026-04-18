@@ -77,12 +77,13 @@ function doPost(e) {
 
     // Guardar foto en Drive si viene en el request
     let urlFoto = "";
+    let fotoError = null;
     const fotoBase64 = datos.fotoBase64;
     if (fotoBase64 && typeof fotoBase64 === "string" && fotoBase64.length > 50) {
       try {
         urlFoto = guardarFotoEnDrive(fotoBase64, barrio, fecha);
       } catch (err) {
-        // Si falla la foto, continuar sin ella
+        fotoError = err.message;
         Logger.log("Error al guardar foto: " + err.message);
       }
     }
@@ -98,7 +99,8 @@ function doPost(e) {
       resultado: "ok",
       mensaje: "Denuncia guardada correctamente",
       fotoGuardada: urlFoto.length > 0,
-      fotoUrl: urlFoto
+      fotoUrl: urlFoto,
+      fotoError: fotoError
     });
 
   } catch (error) {

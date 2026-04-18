@@ -9,7 +9,7 @@
 
 // URL del Web App desplegado desde Google Apps Script
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbym_pj6ZDu8MgWCEaRFuBG6EOyLH8oWLoJo-jyneZmQXxAj0a8eYATaoo1g4mDtZXA-ZQ/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbysLgyX-_KC5-vd2m4E9Ss_a1p0zTIs6v3b_D1miozlJ5gYJ1IEBu2x6ntzbmoIwQwHsA/exec";
 
 // Contraseña para el panel de administración
 // IMPORTANTE: Esto es una protección básica del lado del cliente.
