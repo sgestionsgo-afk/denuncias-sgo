@@ -1,0 +1,804 @@
+/* =============================================================
+   DISEÑO MINIMALISTA OSCURO AVANZADO — La Libertad Avanza
+   Color Violeta Principal: #7B2CBF
+   Tipografía: Montserrat (Google Fonts)
+   Background: Mapa fullscreen con overlay oscuro
+   Estilo: Minimalista, limpio, componentes translúcidos, móvil-first
+   ============================================================= */
+
+/* --------- VARIABLES CSS --------- */
+:root {
+  /* Colores principales */
+  --color-violeta: #7B2CBF;
+  --color-violeta-claro: #9D4EDD;
+  --color-violeta-oscuro: #5A1F8E;
+  --color-background: #000000;
+  --color-surface: rgba(17, 17, 17, 0.85);
+  --color-surface-alt: rgba(26, 26, 26, 0.85);
+  --color-text: #FFFFFF;
+  --color-text-secondary: #CCCCCC;
+  --color-border: rgba(51, 51, 51, 0.4);
+  --color-success: #4CAF50;
+  --color-error: #FF6B6B;
+  --color-warning: #FFA500;
+
+  /* Tipografía */
+  --font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+
+  /* Espaciado */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border Radius (minimalista: sin redondeado excesivo) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+/* --------- RESET Y BASE --------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  font-size: var(--font-size-base);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------- LAYOUT GENERAL CON MAPA COMO FONDO --------- */
+.app-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Contenedor del mapa (fullscreen, atrás) */
+.map-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background: var(--color-background);
+}
+
+.leaflet-mapa-fondo {
+  width: 100%;
+  height: 100%;
+}
+
+/* Overlay oscuro sobre el mapa */
+.map-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Contenedor principal (encima del mapa) */
+.app-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Contenedor principal centrado */
+.main-content {
+  flex: 1;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 20;
+}
+
+/* --------- NAVBAR (sobre el mapa) --------- */
+.navbar {
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  z-index: 30;
+  backdrop-filter: blur(8px);
+}
+
+.navbar-marca {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.navbar-links {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.nav-link {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: var(--spacing-sm) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: color 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-link:hover {
+  color: var(--color-violeta-claro);
+}
+
+.nav-link.activo {
+  color: var(--color-violeta);
+  border-bottom-color: var(--color-violeta);
+}
+
+/* --------- FOOTER --------- */
+.app-footer {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  border-top: 1px solid var(--color-border);
+  margin-top: auto;
+  position: relative;
+  z-index: 25;
+  backdrop-filter: blur(8px);
+}
+
+/* --------- CONTENEDORES GENERALES (translúcidos) --------- */
+.form-container,
+.map-container,
+.admin-container {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.form-container h2 {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-violeta);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.form-subtitulo {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.report-form label {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.report-form select,
+.report-form textarea,
+.report-form input {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  transition: all 0.2s ease;
+}
+
+.report-form select:focus,
+.report-form textarea:focus,
+.report-form input:focus {
+  outline: none;
+  border-color: var(--color-violeta);
+  background: var(--color-surface-alt);
+}
+
+.report-form small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: right;
+  font-weight: 400;
+}
+
+/* --------- GEOLOCALIZACIÓN --------- */
+.geo-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.btn-geo {
+  background: var(--color-violeta);
+  color: white;
+  border: none;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  align-self: flex-start;
+  transition: background 0.2s ease;
+  font-family: var(--font-family);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.btn-geo:hover {
+  background: var(--color-violeta-claro);
+}
+
+.btn-geo:active {
+  background: var(--color-violeta-oscuro);
+}
+
+.geo-info {
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.geo-error {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}
+
+/* --------- BOTÓN DE ENVIAR --------- */
+.btn-enviar {
+  background: var(--color-violeta);
+  color: white;
+  border: none;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: var(--spacing-md);
+}
+
+.btn-enviar:hover {
+  background: var(--color-violeta-claro);
+  transform: translateY(-1px);
+}
+
+.btn-enviar:active {
+  background: var(--color-violeta-oscuro);
+  transform: translateY(0);
+}
+
+.btn-enviar:disabled {
+  background: var(--color-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* --------- MENSAJES DE ESTADO --------- */
+.mensaje {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+  border-left: 4px solid;
+}
+
+.mensaje-exito {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--color-success);
+  border-left-color: var(--color-success);
+}
+
+.mensaje-error {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--color-error);
+  border-left-color: var(--color-error);
+}
+
+.cargando {
+  color: var(--color-violeta);
+  font-style: italic;
+  padding: var(--spacing-xl) 0;
+  text-align: center;
+}
+
+.sin-datos {
+  color: var(--color-text-secondary);
+  padding: var(--spacing-2xl) 0;
+  text-align: center;
+  font-style: italic;
+  font-size: var(--font-size-sm);
+}
+
+/* --------- MAPA --------- */
+.map-container {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+}
+
+.map-container h2 {
+  color: var(--color-violeta);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.map-subtitulo {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
+.leaflet-mapa {
+  height: 450px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  z-index: 1;
+  background: #0a0a0a;
+}
+
+/* Mapa como fondo fullscreen */
+.leaflet-mapa-fondo {
+  width: 100%;
+  height: 100%;
+  background: #0a0a0a;
+}
+
+/* Clusters personalizados - Violeta */
+.custom-cluster {
+  background: none !important;
+  border: none !important;
+}
+
+.cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(123, 44, 191, 0.4);
+  font-family: var(--font-family);
+}
+
+.cluster-small {
+  background: var(--color-violeta);
+  width: 35px;
+  height: 35px;
+}
+
+.cluster-medium {
+  background: var(--color-violeta-claro);
+  width: 42px;
+  height: 42px;
+  font-size: 0.95rem;
+}
+
+.cluster-large {
+  background: var(--color-violeta-oscuro);
+  width: 50px;
+  height: 50px;
+  font-size: 1.05rem;
+}
+
+/* Leaflet - Personalización oscura */
+.leaflet-control-attribution {
+  background: var(--color-surface) !important;
+  color: var(--color-text-secondary) !important;
+  border: 1px solid var(--color-border) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-violeta) !important;
+}
+
+.leaflet-control {
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid var(--color-border) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom-out:hover {
+  background: var(--color-surface-alt) !important;
+  color: var(--color-violeta) !important;
+}
+
+/* Estilos para tiles oscuros del mapa */
+.leaflet-tile {
+  filter: brightness(0.9) contrast(1.1);
+}
+
+/* --------- ESTADÍSTICAS --------- */
+.estadisticas {
+  margin-bottom: var(--spacing-xl);
+}
+
+.estadisticas h3 {
+  color: var(--color-text);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.stat-barrio {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.stat-count {
+  background: var(--color-violeta);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+/* --------- ADMIN PANEL --------- */
+.admin-container {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+}
+
+.admin-container h2 {
+  color: var(--color-violeta);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+}
+
+.admin-login {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  max-width: 400px;
+}
+
+.admin-login input {
+  flex: 1;
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family);
+}
+
+.admin-login input:focus {
+  outline: none;
+  border-color: var(--color-violeta);
+  background: var(--color-surface-alt);
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.btn-cerrar-sesion {
+  background: var(--color-error);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.btn-cerrar-sesion:hover {
+  background: #ff4444;
+  transform: translateY(-1px);
+}
+
+.admin-controles {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-controles select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family);
+}
+
+.admin-controles select:focus {
+  outline: none;
+  border-color: var(--color-violeta);
+}
+
+.admin-conteo {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* --------- TABLA DE DENUNCIAS --------- */
+.tabla-wrapper {
+  overflow-x: auto;
+}
+
+.tabla-denuncias {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.tabla-denuncias th {
+  background: var(--color-surface-alt);
+  color: var(--color-violeta);
+  padding: var(--spacing-md);
+  text-align: left;
+  position: sticky;
+  top: 0;
+  border-bottom: 2px solid var(--color-border);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.tabla-denuncias td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.tabla-denuncias tbody tr:hover {
+  background: var(--color-surface-alt);
+}
+
+.col-fecha {
+  white-space: nowrap;
+  min-width: 130px;
+  color: var(--color-text-secondary);
+}
+
+.col-denuncia {
+  max-width: 350px;
+  word-break: break-word;
+}
+
+.col-ubicacion a {
+  color: var(--color-violeta);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.col-ubicacion a:hover {
+  color: var(--color-violeta-claro);
+  text-decoration: underline;
+}
+
+.sin-ubicacion {
+  color: var(--color-text-secondary);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* --------- RESPONSIVE: MOBILE-FIRST --------- */
+@media (max-width: 640px) {
+  :root {
+    --font-size-base: 0.95rem;
+    --spacing-xl: 1.5rem;
+    --spacing-lg: 1rem;
+  }
+
+  .navbar {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    text-align: center;
+    padding: var(--spacing-md);
+  }
+
+  .navbar-links {
+    gap: var(--spacing-md);
+    justify-content: center;
+  }
+
+  .main-content {
+    padding: var(--spacing-lg) var(--spacing-sm);
+    width: 100%;
+    max-width: none;
+  }
+
+  .form-container,
+  .map-container,
+  .admin-container {
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-sm);
+    width: 100%;
+  }
+
+  .leaflet-mapa {
+    height: 350px;
+  }
+
+  .admin-login {
+    flex-direction: column;
+  }
+
+  .admin-controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabla-denuncias {
+    font-size: 0.8rem;
+  }
+
+  .tabla-denuncias th,
+  .tabla-denuncias td {
+    padding: var(--spacing-sm);
+  }
+
+  .col-denuncia {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-marca {
+    font-size: var(--font-size-base);
+  }
+
+  .form-container h2,
+  .map-container h2,
+  .admin-container h2 {
+    font-size: var(--font-size-xl);
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+}
+
+/* --------- UTILIDADES --------- */
+.text-violeta {
+  color: var(--color-violeta);
+}
+
+.bg-surface {
+  background: var(--color-surface);
+}
+
+.border-bottom {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.opacity-secondary {
+  color: var(--color-text-secondary);
+}
