@@ -15,6 +15,9 @@ function AdminPanel() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [filtroBarrio, setFiltroBarrio] = useState("");
+  
+  // Estado para modal de foto
+  const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
 
   // --- Verificar contraseña ---
   const verificarPassword = (e) => {
@@ -132,6 +135,7 @@ function AdminPanel() {
                 <th>Fecha</th>
                 <th>Barrio</th>
                 <th>Denuncia</th>
+                <th>Foto</th>
                 <th>Coordenadas Exactas</th>
               </tr>
             </thead>
@@ -142,6 +146,19 @@ function AdminPanel() {
                   <td className="col-fecha">{formatearFecha(d.fecha)}</td>
                   <td>{d.barrio}</td>
                   <td className="col-denuncia">{d.denuncia}</td>
+                  <td className="col-foto">
+                    {d.foto ? (
+                      <button
+                        className="btn-ver-foto"
+                        onClick={() => setFotoSeleccionada(d.foto)}
+                        title="Ver foto"
+                      >
+                        🖼️ Ver foto
+                      </button>
+                    ) : (
+                      <span className="sin-foto">Sin foto</span>
+                    )}
+                  </td>
                   <td className="col-ubicacion">
                     {d.lat && d.lng ? (
                       <>
@@ -165,6 +182,30 @@ function AdminPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal de foto ampliada */}
+      {fotoSeleccionada && (
+        <div className="modal-foto" onClick={() => setFotoSeleccionada(null)}>
+          <div className="modal-contenido" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="btn-cerrar-modal"
+              onClick={() => setFotoSeleccionada(null)}
+              title="Cerrar"
+            >
+              ✕
+            </button>
+            <img src={fotoSeleccionada} alt="Foto de denuncia" className="img-modal" />
+            <a
+              href={fotoSeleccionada}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-descargar-foto"
+            >
+              ⬇️ Descargar
+            </a>
+          </div>
         </div>
       )}
 
