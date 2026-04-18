@@ -13,7 +13,7 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-marca">
-        <span role="img" aria-label="megáfono">📢</span>{" "}
+        <img src="/assets/logo lla.png" alt="Logo La Libertad Avanza" className="navbar-logo"/>
         Denuncias Santiago Capital
       </div>
       <div className="navbar-links">

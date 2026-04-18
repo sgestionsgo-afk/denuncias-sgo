@@ -166,6 +166,17 @@ body {
   font-size: var(--font-size-lg);
   font-weight: 700;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.navbar-logo {
+  height: 45px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(123, 44, 191, 0.3));
 }
 
 .navbar-links {
@@ -936,6 +947,11 @@ body {
 @media (max-width: 480px) {
   .navbar-marca {
     font-size: var(--font-size-base);
+  }
+
+  .navbar-logo {
+    height: 35px;
+    max-width: 100px;
   }
 
   .form-container h2,
