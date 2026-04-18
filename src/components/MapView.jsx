@@ -143,23 +143,6 @@ function MapView() {
       {cargando && <p className="cargando">Cargando denuncias...</p>}
       {error && <p className="mensaje mensaje-error">{error}</p>}
 
-      {/* Estadísticas por barrio */}
-      {!cargando && denuncias.length > 0 && (
-        <div className="estadisticas">
-          <h3>📊 Denuncias por barrio ({denuncias.length} total)</h3>
-          <div className="stats-grid">
-            {Object.entries(conteoPorBarrio)
-              .sort((a, b) => b[1] - a[1])
-              .map(([nombre, cantidad]) => (
-                <div key={nombre} className="stat-item">
-                  <span className="stat-barrio">{nombre}</span>
-                  <span className="stat-count">{cantidad}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
       {/* Mapa de Leaflet */}
       <MapContainer
         center={MAP_CENTER}
@@ -177,6 +160,29 @@ function MapView() {
           maxZoom={19}
         />
       </MapContainer>
+
+      {/* Carrusel de estadísticas por barrio - tipo consola */}
+      {!cargando && denuncias.length > 0 && (
+        <div className="stats-carousel">
+          <div className="carousel-track">
+            {Object.entries(conteoPorBarrio)
+              .sort((a, b) => b[1] - a[1])
+              .map(([nombre, cantidad]) => (
+                <div key={nombre} className="carousel-item">
+                  <span className="console-text">[{nombre}] → {cantidad}</span>
+                </div>
+              ))}
+            {/* Duplicar items para efecto infinito */}
+            {Object.entries(conteoPorBarrio)
+              .sort((a, b) => b[1] - a[1])
+              .map(([nombre, cantidad]) => (
+                <div key={`${nombre}-clone`} className="carousel-item">
+                  <span className="console-text">[{nombre}] → {cantidad}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {!cargando && denuncias.length === 0 && !error && (
         <p className="sin-datos">Todavía no hay denuncias registradas.</p>
