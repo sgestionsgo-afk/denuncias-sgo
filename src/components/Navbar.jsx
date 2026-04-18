@@ -4,7 +4,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
-function Navbar() {
+function Navbar({ tema, toggleTema }) {
   const location = useLocation();
 
   // Resalta el link activo
@@ -20,6 +20,14 @@ function Navbar() {
         <Link to="/" className={esActivo("/")}>Denunciar</Link>
         <Link to="/mapa" className={esActivo("/mapa")}>Mapa</Link>
         <Link to="/admin" className={esActivo("/admin")}>Admin</Link>
+        {/* Botón toggle tema pequeño */}
+        <button 
+          onClick={toggleTema} 
+          className="btn-tema"
+          title={tema === "dark" ? "Pasar a modo claro" : "Pasar a modo oscuro"}
+        >
+          {tema === "dark" ? "☀️" : "🌙"}
+        </button>
       </div>
     </nav>
   );

@@ -46,6 +46,25 @@
   --radius-lg: 8px;
 }
 
+/* --------- LIGHT MODE (MODO CLARO) --------- */
+.light-mode {
+  --color-background: #F5F5F5;
+  --color-surface: rgba(255, 255, 255, 0.9);
+  --color-surface-alt: rgba(245, 245, 245, 0.9);
+  --color-text: #1a1a1a;
+  --color-text-secondary: #555555;
+  --color-border: rgba(200, 200, 200, 0.3);
+}
+
+.light-mode .leaflet-mapa,
+.light-mode .leaflet-mapa-fondo {
+  background: #e8e8e8 !important;
+}
+
+.light-mode .leaflet-tile {
+  filter: brightness(1) contrast(1);
+}
+
 /* --------- RESET Y BASE --------- */
 * {
   margin: 0;
@@ -201,6 +220,34 @@ body {
 .nav-link.activo {
   color: var(--color-violeta);
   border-bottom-color: var(--color-violeta);
+}
+
+/* Botón de toggle tema */
+.btn-tema {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  padding: 0;
+  color: var(--color-text);
+  margin-left: var(--spacing-md);
+}
+
+.btn-tema:hover {
+  border-color: var(--color-violeta);
+  background: rgba(123, 44, 191, 0.1);
+  transform: scale(1.1);
+}
+
+.btn-tema:active {
+  transform: scale(0.95);
 }
 
 /* --------- FOOTER --------- */
