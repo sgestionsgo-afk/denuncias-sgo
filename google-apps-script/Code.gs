@@ -1,19 +1,7 @@
 // =============================================================
-// Google Apps Script — Code.gs
+// Google Apps Script — Code.gs  (versión limpia)
 // API para recibir y listar denuncias desde Google Sheets
 // Incluye guardado de fotos en Google Drive
-//
-// INSTRUCCIONES DE DESPLIEGUE:
-// 1. Creá una Google Sheet nueva
-// 2. En la primera hoja ("Denuncias"), poné estos encabezados en fila 1:
-//    A: Fecha | B: Barrio | C: Denuncia | D: Latitud | E: Longitud | F: Foto URL
-// 3. Andá a Extensiones > Apps Script
-// 4. Pegá este código completo en Code.gs
-// 5. Desplegá como "Aplicación web":
-//    - Ejecutar como: tu cuenta
-//    - Acceso: Cualquier persona
-// 6. Copiá la URL generada y pegala en src/config/api.js
-// 7. El script crea automáticamente una carpeta "Fotos Denuncias" en tu Drive
 // =============================================================
 
 // Contraseña para el panel de administración
@@ -73,32 +61,7 @@ function doGet(e) {
 // --- Manejar peticiones POST (nueva denuncia) ---
 function doPost(e) {
   try {
-    // DEBUG: Log todo lo que recibimos
-    Logger.log("=== INICIO doPost ===");
-    Logger.log("postData type: " + typeof e.postData);
-    Logger.log("postData.contents length: " + e.postData.contents.length);
-    Logger.log("postData.contents primeros 200 chars: " + e.postData.contents.substring(0, 200));
-    
-    // Parsear datos del cuerpo de la petición
     const datos = JSON.parse(e.postData.contents);
-    
-    // DEBUG: Loguear qué recibimos después de parsear
-    Logger.log("=== DATOS PARSEADOS ===");
-    Logger.log("Keys en datos: " + Object.keys(datos).join(", "));
-    Logger.log("Barrio: " + datos.barrio);
-    Logger.log("Denuncia: " + datos.denuncia);
-    Logger.log("Tipo fotoBase64: " + typeof datos.fotoBase64);
-    Logger.log("fotoBase64 es undefined: " + (datos.fotoBase64 === undefined));
-    Logger.log("fotoBase64 es null: " + (datos.fotoBase64 === null));
-    Logger.log("fotoBase64 === '': " + (datos.fotoBase64 === ""));
-    Logger.log("fotoBase64 length: " + (datos.fotoBase64 ? datos.fotoBase64.length : "N/A"));
-    
-    if (datos.fotoBase64) {
-      Logger.log("✓ Tiene fotoBase64 (truthy)");
-      Logger.log("fotoBase64 starts with: " + datos.fotoBase64.substring(0, 80));
-    } else {
-      Logger.log("✗ NO tiene fotoBase64 (falsy)");
-    }
 
     // Validar campos requeridos
     if (!datos.barrio || !datos.denuncia) {
@@ -111,66 +74,34 @@ function doPost(e) {
     const lat = datos.lat ? String(datos.lat).substring(0, 20) : "";
     const lng = datos.lng ? String(datos.lng).substring(0, 20) : "";
     const fecha = datos.fecha || new Date().toISOString();
-    
-    // Procesar foto si existe (base64)
+
+    // Guardar foto en Drive si viene en el request
     let urlFoto = "";
-    Logger.log("=== PROCESANDO FOTO ===");
-    
-    // Verificar si fotoBase64 existe Y tiene datos
-    const tieneFoto = datos.hasOwnProperty("fotoBase64") && 
-                      datos.fotoBase64 && 
-                      datos.fotoBase64.length > 0 &&
-                      datos.fotoBase64.startsWith("data:");
-    
-    Logger.log("Tiene propiedad fotoBase64: " + datos.hasOwnProperty("fotoBase64"));
-    Logger.log("Valor fotoBase64: " + (datos.fotoBase64 ? "truthy" : "falsy"));
-    Logger.log("Tipo de fotoBase64: " + typeof datos.fotoBase64);
-    Logger.log("¿Comienza con data:? " + (datos.fotoBase64 ? datos.fotoBase64.startsWith("data:") : "N/A"));
-    Logger.log("tieneFoto final: " + tieneFoto);
-    
-    if (tieneFoto) {
+    const fotoBase64 = datos.fotoBase64;
+    if (fotoBase64 && typeof fotoBase64 === "string" && fotoBase64.length > 50) {
       try {
-        Logger.log("→ Intentando guardar foto...");
-        Logger.log("  fotoBase64 length: " + datos.fotoBase64.length);
-        Logger.log("  fotoBase64 first 100 chars: " + datos.fotoBase64.substring(0, 100));
-        
-        urlFoto = guardarFotoEnDrive(datos.fotoBase64, barrio, fecha);
-        Logger.log("✓ Foto guardada: " + urlFoto);
-      } catch (fotoError) {
-        Logger.log("✗ Error guardando foto: " + fotoError.message);
-        Logger.log("Stack trace: " + fotoError.stack);
-        // Continuar sin foto
-        urlFoto = "";
+        urlFoto = guardarFotoEnDrive(fotoBase64, barrio, fecha);
+      } catch (err) {
+        // Si falla la foto, continuar sin ella
+        Logger.log("Error al guardar foto: " + err.message);
       }
-    } else {
-      Logger.log("✗ No hay foto para guardar");
     }
 
-    Logger.log("urlFoto final: '" + urlFoto + "' (length: " + urlFoto.length + ")");
-    
-    // Obtener la hoja
+    // Guardar en Sheets
     const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
-
     if (!hoja) {
       return respuestaJSON({ error: "No se encontró la hoja '" + NOMBRE_HOJA + "'" });
     }
+    hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto]);
 
-    // Agregar fila con los datos (ahora con la foto en columna F)
-    const fila = [fecha, barrio, denuncia, lat, lng, urlFoto];
-    Logger.log("Agregando fila: " + JSON.stringify(fila).substring(0, 200));
-    hoja.appendRow(fila);
-    Logger.log("✓ Fila agregada exitosamente");
-
-    Logger.log("=== FIN doPost ===");
-    return respuestaJSON({ 
-      resultado: "ok", 
+    return respuestaJSON({
+      resultado: "ok",
       mensaje: "Denuncia guardada correctamente",
-      fotoGuardada: urlFoto ? true : false,
-      fotoLength: urlFoto.length
+      fotoGuardada: urlFoto.length > 0,
+      fotoUrl: urlFoto
     });
+
   } catch (error) {
-    Logger.log("✗✗✗ EXCEPCION EN doPost: " + error.message);
-    Logger.log("Stack: " + error.stack);
     return respuestaJSON({ error: "Error al procesar: " + error.message });
   }
 }
