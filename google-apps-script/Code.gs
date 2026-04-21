@@ -1,198 +1,338 @@
 // =============================================================
-// Google Apps Script — Code.gs  (versión limpia)
-// API para recibir y listar denuncias desde Google Sheets
-// Incluye guardado de fotos en Google Drive
+// Google Apps Script — Code.gs  (versión SEGURA v2)
+// Endpoints separados: público (crear + stats) y admin (auth Google)
+// Incluye: Turnstile CAPTCHA, rate limiting, sanitización, auth
+// =============================================================
+// CONFIGURACIÓN — Setear en: Archivo > Configuración del proyecto >
+//   Propiedades del script (Script Properties):
+//
+//   TURNSTILE_SECRET   → Secret key de Cloudflare Turnstile
+//   ADMIN_EMAILS       → Emails admin separados por coma
+//   API_KEY            → Clave compartida con el frontend público
+//   GOOGLE_CLIENT_ID   → Client ID de Google OAuth (para validar audience)
 // =============================================================
 
-// Contraseña para el panel de administración
-// DEBE coincidir con la de src/config/api.js
-const CLAVE_ADMIN = "admin2026";
+var NOMBRE_HOJA = "Denuncias";
+var CARPETA_FOTOS_ID = null;
 
-// Nombre de la hoja donde se guardan las denuncias
-const NOMBRE_HOJA = "Denuncias";
+// =================== HELPERS ===================
 
-// ID de la carpeta en Google Drive donde se guardarán las fotos
-// IMPORTANTE: Crea una carpeta en Drive, haz clic derecho > Obtener ID de carpeta
-// y pega el ID aquí (o usa DriveApp.createFolder("Fotos Denuncias"))
-let CARPETA_FOTOS_ID = null;
-
-// --- Función auxiliar para obtener o crear carpeta de fotos ---
-function obtenerCarpetaFotos() {
-  if (CARPETA_FOTOS_ID) {
-    try {
-      return DriveApp.getFolderById(CARPETA_FOTOS_ID);
-    } catch (e) {
-      // Si la carpeta no existe, crearla
-    }
-  }
-  
-  // Buscar o crear carpeta "Fotos Denuncias"
-  const folders = DriveApp.getFoldersByName("Fotos Denuncias");
-  if (folders.hasNext()) {
-    CARPETA_FOTOS_ID = folders.next().getId();
-    return DriveApp.getFolderById(CARPETA_FOTOS_ID);
-  }
-  
-  // Crear carpeta si no existe
-  const nuevaCarpeta = DriveApp.createFolder("Fotos Denuncias");
-  CARPETA_FOTOS_ID = nuevaCarpeta.getId();
-  return nuevaCarpeta;
+function cfg(key) {
+  return (PropertiesService.getScriptProperties().getProperty(key) || "").trim();
 }
 
-// --- Manejar peticiones GET (lectura de datos) ---
-function doGet(e) {
-  const accion = e.parameter.accion;
+function respuestaJSON(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
-  if (accion === "listar_publico") {
-    return listarPublico();
+function obtenerCarpetaFotos() {
+  if (CARPETA_FOTOS_ID) {
+    try { return DriveApp.getFolderById(CARPETA_FOTOS_ID); } catch (_) {}
   }
+  var it = DriveApp.getFoldersByName("Fotos Denuncias");
+  if (it.hasNext()) {
+    var f = it.next();
+    CARPETA_FOTOS_ID = f.getId();
+    return f;
+  }
+  var nueva = DriveApp.createFolder("Fotos Denuncias");
+  CARPETA_FOTOS_ID = nueva.getId();
+  return nueva;
+}
 
-  if (accion === "listar_admin") {
-    const clave = e.parameter.clave;
-    if (clave !== CLAVE_ADMIN) {
-      return respuestaJSON({ error: "Clave incorrecta" });
+// =================== RATE LIMITING ===================
+// Usa CacheService (6h máx TTL). Ventana de 60 s.
+
+function checkRateLimit(bucket, maxPerMinute) {
+  var cache = CacheService.getScriptCache();
+  var key = "rl_" + bucket;
+  var val = cache.get(key);
+  var count = val ? parseInt(val, 10) : 0;
+  if (count >= maxPerMinute) return false;
+  cache.put(key, String(count + 1), 60);
+  return true;
+}
+
+function checkDuplicate(barrio, denuncia) {
+  var cache = CacheService.getScriptCache();
+  var raw = barrio + "|" + denuncia;
+  var hash = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, raw)
+    .map(function (b) { return (b < 0 ? b + 256 : b).toString(16); })
+    .join("");
+  var key = "dup_" + hash;
+  if (cache.get(key)) return true;
+  cache.put(key, "1", 300); // 5 min de-dup
+  return false;
+}
+
+// =================== TURNSTILE CAPTCHA ===================
+
+function verificarTurnstile(token) {
+  var secret = cfg("TURNSTILE_SECRET");
+  if (!secret) { Logger.log("TURNSTILE_SECRET no configurado"); return false; }
+  try {
+    var r = UrlFetchApp.fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      { method: "post", payload: { secret: secret, response: token } }
+    );
+    return JSON.parse(r.getContentText()).success === true;
+  } catch (err) {
+    Logger.log("Turnstile error: " + err.message);
+    return false;
+  }
+}
+
+// =================== ADMIN AUTH (Google ID Token) ===================
+
+function verificarTokenAdmin(idToken) {
+  if (!idToken) return { ok: false, error: "Token no proporcionado" };
+  try {
+    var r = UrlFetchApp.fetch(
+      "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken)
+    );
+    var info = JSON.parse(r.getContentText());
+
+    // Verificar audience (debe coincidir con tu Client ID)
+    var clientId = cfg("GOOGLE_CLIENT_ID");
+    if (clientId && info.aud !== clientId) {
+      return { ok: false, error: "Audience inválido" };
     }
-    return listarAdmin();
+
+    if (info.email_verified !== "true") {
+      return { ok: false, error: "Email no verificado" };
+    }
+
+    var allowed = cfg("ADMIN_EMAILS").split(",").map(function (e) {
+      return e.trim().toLowerCase();
+    });
+    if (allowed.indexOf(info.email.toLowerCase()) === -1) {
+      return { ok: false, error: "Email no autorizado: " + info.email };
+    }
+
+    return { ok: true, email: info.email };
+  } catch (err) {
+    Logger.log("Auth error: " + err.message);
+    return { ok: false, error: "Token inválido o expirado" };
   }
+}
+
+// =================== SANITIZACIÓN ===================
+
+function sanitizar(texto, maxLen) {
+  if (typeof texto !== "string") return "";
+  texto = texto.replace(/<[^>]*>/g, "");           // strip HTML
+  texto = texto.replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ""); // strip control chars
+  return texto.trim().substring(0, maxLen);
+}
+
+function validarCoord(val) {
+  if (val === "" || val === null || val === undefined) return "";
+  var n = parseFloat(val);
+  if (isNaN(n) || n < -90 || n > 90) return "";
+  return String(n).substring(0, 20);
+}
+
+// =================== ENDPOINTS ===================
+
+function doGet(e) {
+  var accion = (e.parameter.accion || "").trim();
+
+  if (accion === "listar_publico") return listarPublico(e);
+  if (accion === "listar_admin")   return listarAdmin(e);
 
   return respuestaJSON({ error: "Acción no reconocida" });
 }
 
-// --- Manejar peticiones POST (nueva denuncia) ---
 function doPost(e) {
   try {
-    const datos = JSON.parse(e.postData.contents);
-
-    // Validar campos requeridos
-    if (!datos.barrio || !datos.denuncia) {
-      return respuestaJSON({ error: "Faltan campos obligatorios (barrio, denuncia)" });
-    }
-
-    // Sanitizar: limitar longitud del texto
-    const barrio = datos.barrio.substring(0, 100);
-    const denuncia = datos.denuncia.substring(0, 1000);
-    const lat = datos.lat ? String(datos.lat).substring(0, 20) : "";
-    const lng = datos.lng ? String(datos.lng).substring(0, 20) : "";
-    const fecha = datos.fecha || new Date().toISOString();
-
-    // Guardar foto en Drive si viene en el request
-    let urlFoto = "";
-    let fotoError = null;
-    const fotoBase64 = datos.fotoBase64;
-    if (fotoBase64 && typeof fotoBase64 === "string" && fotoBase64.length > 50) {
-      try {
-        urlFoto = guardarFotoEnDrive(fotoBase64, barrio, fecha);
-      } catch (err) {
-        fotoError = err.message;
-        Logger.log("Error al guardar foto: " + err.message);
-      }
-    }
-
-    // Guardar en Sheets
-    const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
-    if (!hoja) {
-      return respuestaJSON({ error: "No se encontró la hoja '" + NOMBRE_HOJA + "'" });
-    }
-    hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto]);
-
-    return respuestaJSON({
-      resultado: "ok",
-      mensaje: "Denuncia guardada correctamente",
-      fotoGuardada: urlFoto.length > 0,
-      fotoUrl: urlFoto,
-      fotoError: fotoError
-    });
-
-  } catch (error) {
-    return respuestaJSON({ error: "Error al procesar: " + error.message });
+    var datos = JSON.parse(e.postData.contents);
+    var accion = datos.accion || "crear";
+    if (accion === "crear") return crearDenuncia(datos);
+    return respuestaJSON({ error: "Acción no reconocida" });
+  } catch (err) {
+    return respuestaJSON({ error: "Error al procesar: " + err.message });
   }
 }
 
-// --- Función para guardar foto en Google Drive ---
+// =================== CREAR DENUNCIA (público) ===================
+
+function crearDenuncia(datos) {
+  // 1) API key
+  var apiKey = cfg("API_KEY");
+  if (apiKey && datos.apiKey !== apiKey) {
+    return respuestaJSON({ error: "API key inválida" });
+  }
+
+  // 2) CAPTCHA
+  if (!datos.captchaToken) {
+    return respuestaJSON({ error: "CAPTCHA requerido" });
+  }
+  if (!verificarTurnstile(datos.captchaToken)) {
+    return respuestaJSON({ error: "Verificación CAPTCHA fallida" });
+  }
+
+  // 3) Rate limit global (30 reportes/minuto)
+  if (!checkRateLimit("crear", 30)) {
+    return respuestaJSON({ error: "Demasiadas solicitudes. Intentá en un minuto." });
+  }
+
+  // 4) Campos obligatorios
+  if (!datos.barrio || !datos.denuncia) {
+    return respuestaJSON({ error: "Faltan campos obligatorios" });
+  }
+
+  // 5) Sanitizar
+  var barrio   = sanitizar(datos.barrio, 100);
+  var denuncia = sanitizar(datos.denuncia, 1000);
+  var lat      = validarCoord(datos.lat);
+  var lng      = validarCoord(datos.lng);
+  var fecha    = new Date().toISOString(); // timestamp del servidor
+
+  if (barrio.length < 2)    return respuestaJSON({ error: "Barrio inválido" });
+  if (denuncia.length < 10) return respuestaJSON({ error: "Descripción muy corta (mín 10 caracteres)" });
+
+  // 6) De-dup
+  if (checkDuplicate(barrio, denuncia)) {
+    return respuestaJSON({ error: "Denuncia duplicada. Esperá unos minutos." });
+  }
+
+  // 7) Foto opcional
+  var urlFoto = "";
+  var fotoError = null;
+  if (datos.fotoBase64 && typeof datos.fotoBase64 === "string" && datos.fotoBase64.length > 50) {
+    if (!datos.fotoBase64.match(/^data:image\/(jpeg|png|webp|gif);base64,/)) {
+      return respuestaJSON({ error: "Formato de imagen inválido" });
+    }
+    if (datos.fotoBase64.length > 7000000) {
+      return respuestaJSON({ error: "Imagen demasiado grande (máx 5 MB)" });
+    }
+    try {
+      urlFoto = guardarFotoEnDrive(datos.fotoBase64, barrio, fecha);
+    } catch (err) {
+      fotoError = err.message;
+      Logger.log("Foto error: " + err.message);
+    }
+  }
+
+  // 8) Guardar
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+  if (!hoja) return respuestaJSON({ error: "Hoja no encontrada" });
+
+  hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto]);
+
+  return respuestaJSON({
+    resultado: "ok",
+    mensaje: "Denuncia guardada correctamente",
+    fotoGuardada: urlFoto.length > 0,
+    fotoError: fotoError
+  });
+}
+
+// =================== LISTAR PÚBLICO (solo estadísticas) ===================
+// Devuelve SOLO { barrio, cantidad } — sin texto, sin coords exactas, sin fotos
+
+function listarPublico(e) {
+  var apiKey = cfg("API_KEY");
+  if (apiKey && e.parameter.apiKey !== apiKey) {
+    return respuestaJSON({ error: "API key inválida" });
+  }
+
+  if (!checkRateLimit("listar", 120)) {
+    return respuestaJSON({ error: "Demasiadas solicitudes" });
+  }
+
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+  if (!hoja || hoja.getLastRow() < 2) {
+    return respuestaJSON({ denuncias: [], total: 0 });
+  }
+
+  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 2).getValues(); // solo fecha+barrio
+  var porBarrio = {};
+  datos.forEach(function (fila) {
+    var b = String(fila[1]);
+    porBarrio[b] = (porBarrio[b] || 0) + 1;
+  });
+
+  var lista = Object.keys(porBarrio).map(function (b) {
+    return { barrio: b, cantidad: porBarrio[b] };
+  });
+
+  return respuestaJSON({ denuncias: lista, total: datos.length });
+}
+
+// =================== LISTAR ADMIN (datos completos + auth) ===================
+
+function listarAdmin(e) {
+  var auth = verificarTokenAdmin(e.parameter.token);
+  if (!auth.ok) {
+    return respuestaJSON({ error: auth.error || "No autorizado" });
+  }
+
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+  if (!hoja || hoja.getLastRow() < 2) {
+    return respuestaJSON({ denuncias: [], admin: auth.email });
+  }
+
+  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).getValues();
+  var denuncias = datos.map(function (fila) {
+    return {
+      fecha: fila[0],
+      barrio: fila[1],
+      denuncia: fila[2],
+      lat: fila[3],
+      lng: fila[4],
+      foto: fila[5] || ""
+    };
+  });
+
+  return respuestaJSON({ denuncias: denuncias, admin: auth.email });
+}
+
+// =================== GUARDAR FOTO EN DRIVE ===================
+
 function guardarFotoEnDrive(fotoBase64, barrio, fecha) {
-  try {
-    // Extraer el MIME type y los datos del base64
-    // Formato esperado: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
-    const partes = fotoBase64.split(",");
-    const mimeType = partes[0].match(/:(.*?);/)[1] || "image/jpeg";
-    const dataBase64 = partes[1];
-    
-    // Decodificar base64 a bytes
-    const bytes = Utilities.base64Decode(dataBase64);
-    
-    // Crear nombre único para el archivo
-    const timestamp = new Date().getTime();
-    const nombreArchivo = "Foto_" + barrio.replace(/\s+/g, "_") + "_" + timestamp + ".jpg";
-    
-    // Obtener carpeta de fotos
-    const carpeta = obtenerCarpetaFotos();
-    
-    // Crear archivo en Drive
-    const blob = Utilities.newBlob(bytes, mimeType, nombreArchivo);
-    const archivo = carpeta.createFile(blob);
-    
-    // Obtener URL compartible
-    archivo.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
-    const urlFoto = archivo.getUrl();
-    
-    Logger.log("Foto guardada: " + urlFoto);
-    return urlFoto;
-    
-  } catch (error) {
-    Logger.log("Error en guardarFotoEnDrive: " + error.message);
-    throw error;
-  }
-}
+  var partes = fotoBase64.split(",");
+  if (partes.length !== 2) throw new Error("Formato base64 inválido");
 
-// --- Listar datos públicos (solo barrio y ubicación, SIN texto de denuncia) ---
-function listarPublico() {
-  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+  var mimeMatch = partes[0].match(/:(.*?);/);
+  if (!mimeMatch) throw new Error("MIME type no detectado");
 
-  if (!hoja || hoja.getLastRow() < 2) {
-    return respuestaJSON({ denuncias: [] });
+  var mimeType = mimeMatch[1];
+  var permitidos = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (permitidos.indexOf(mimeType) === -1) {
+    throw new Error("Tipo de imagen no permitido: " + mimeType);
   }
 
-  const datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).getValues();
+  var bytes = Utilities.base64Decode(partes[1]);
+  var ts = new Date().getTime();
+  var ext = mimeType === "image/jpeg" ? "jpg" : mimeType.split("/")[1];
+  var nombre = "Foto_" + barrio.replace(/[^a-zA-Z0-9]/g, "_") + "_" + ts + "." + ext;
 
-  // Devolver SOLO barrio y coordenadas (nunca el texto de la denuncia)
-  const denunciasPublicas = datos.map(function(fila) {
-    return {
-      barrio: fila[1],   // Columna B: Barrio
-      lat: fila[3],       // Columna D: Latitud
-      lng: fila[4],       // Columna E: Longitud
-    };
-  });
+  var carpeta = obtenerCarpetaFotos();
+  var blob = Utilities.newBlob(bytes, mimeType, nombre);
+  var archivo = carpeta.createFile(blob);
 
-  return respuestaJSON({ denuncias: denunciasPublicas });
+  archivo.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
+  return archivo.getUrl();
 }
 
-// --- Listar TODOS los datos para administradores (con texto de denuncia y foto) ---
-function listarAdmin() {
-  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+// =================== SETUP HELPER ===================
+// Ejecutar UNA VEZ para crear las propiedades iniciales (luego editarlas)
 
-  if (!hoja || hoja.getLastRow() < 2) {
-    return respuestaJSON({ denuncias: [] });
+function setupPropiedades() {
+  var props = PropertiesService.getScriptProperties();
+  var current = props.getProperties();
+  var defaults = {
+    TURNSTILE_SECRET: "",
+    ADMIN_EMAILS: "tu-email@gmail.com",
+    API_KEY: Utilities.getUuid(),
+    GOOGLE_CLIENT_ID: ""
+  };
+  for (var k in defaults) {
+    if (!current[k]) props.setProperty(k, defaults[k]);
   }
-
-  const datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).getValues();
-
-  const denunciasCompletas = datos.map(function(fila) {
-    return {
-      fecha: fila[0],     // Columna A: Fecha
-      barrio: fila[1],    // Columna B: Barrio
-      denuncia: fila[2],  // Columna C: Denuncia (solo para admin)
-      lat: fila[3],       // Columna D: Latitud
-      lng: fila[4],       // Columna E: Longitud
-      foto: fila[5] || "" // Columna F: URL de foto en Drive
-    };
-  });
-
-  return respuestaJSON({ denuncias: denunciasCompletas });
-}
-
-// --- Utilidad: crear respuesta JSON con CORS habilitado ---
-function respuestaJSON(objeto) {
-  return ContentService
-    .createTextOutput(JSON.stringify(objeto))
-    .setMimeType(ContentService.MimeType.JSON);
+  Logger.log("Propiedades configuradas. API_KEY generada: " + props.getProperty("API_KEY"));
+  Logger.log("Editá las propiedades en Configuración > Propiedades del script");
 }
