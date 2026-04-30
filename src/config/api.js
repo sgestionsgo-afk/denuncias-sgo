@@ -9,7 +9,7 @@
 
 // URL del Web App desplegado desde Google Apps Script
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbysLgyX-_KC5-vd2m4E9Ss_a1p0zTIs6v3b_D1miozlJ5gYJ1IEBu2x6ntzbmoIwQwHsA/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVsiwrNPA51begj0EKm1KKCDc6GBTRuPCnh0O5WGdF417P3BS4wtuQkkzLcEAUkFYfPw/exec";
 
 // API Key para validación
 const API_KEY = process.env.REACT_APP_API_KEY || "";

@@ -71,7 +71,11 @@ function checkDuplicate(barrio, denuncia) {
 
 function verificarTurnstile(token) {
   var secret = cfg("TURNSTILE_SECRET");
-  if (!secret) { Logger.log("TURNSTILE_SECRET no configurado"); return false; }
+  if (!secret) {
+    // Sin configurar: omitir verificación para facilitar setup inicial
+    Logger.log("TURNSTILE_SECRET no configurado — omitiendo verificación CAPTCHA");
+    return true;
+  }
   try {
     var r = UrlFetchApp.fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -284,7 +288,8 @@ function listarPublico(e) {
 
 function listarAdmin(e) {
   var apiKey = cfg("API_KEY");
-  if (!apiKey || e.parameter.apiKey !== apiKey) {
+  // Si API_KEY está configurada, exigir que coincida; si no está configurada, permitir acceso
+  if (apiKey && e.parameter.apiKey !== apiKey) {
     return respuestaJSON({ error: "No autorizado" });
   }
 
