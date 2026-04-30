@@ -127,11 +127,23 @@ function sanitizar(texto, maxLen) {
   return texto.trim().substring(0, maxLen);
 }
 
-function validarCoord(val) {
+function validarLat(val) {
   if (val === "" || val === null || val === undefined) return "";
   var n = parseFloat(val);
   if (isNaN(n) || n < -90 || n > 90) return "";
   return String(n).substring(0, 20);
+}
+
+function validarLng(val) {
+  if (val === "" || val === null || val === undefined) return "";
+  var n = parseFloat(val);
+  if (isNaN(n) || n < -180 || n > 180) return "";
+  return String(n).substring(0, 20);
+}
+
+// Mantener por compatibilidad
+function validarCoord(val) {
+  return validarLat(val);
 }
 
 // =================== ENDPOINTS ===================
@@ -186,12 +198,21 @@ function crearDenuncia(datos) {
   // 5) Sanitizar
   var barrio   = sanitizar(datos.barrio, 100);
   var denuncia = sanitizar(datos.denuncia, 1000);
-  var lat      = validarCoord(datos.lat);
-  var lng      = validarCoord(datos.lng);
+  
+  // Nueva estructura: ubicacionProblema es objeto con {lat, lng, texto}
+  var ubicacionProblema = datos.ubicacionProblema || {};
+  var lat      = validarLat(ubicacionProblema.lat);
+  var lng      = validarLng(ubicacionProblema.lng);
+  var ubicacionTexto = sanitizar(ubicacionProblema.texto || "", 200);
+  
+  // Contacto opcional (email, teléfono, etc.)
+  var contacto = sanitizar(datos.contacto || "", 100);
+  
   var fecha    = new Date().toISOString(); // timestamp del servidor
 
   if (barrio.length < 2)    return respuestaJSON({ error: "Barrio inválido" });
   if (denuncia.length < 10) return respuestaJSON({ error: "Descripción muy corta (mín 10 caracteres)" });
+  if (!lat || !lng)         return respuestaJSON({ error: "Ubicación del problema es requerida" });
 
   // 6) De-dup
   if (checkDuplicate(barrio, denuncia)) {
@@ -216,11 +237,11 @@ function crearDenuncia(datos) {
     }
   }
 
-  // 8) Guardar
+  // 8) Guardar (7 columnas: fecha, barrio, denuncia, lat, lng, foto, contacto, ubicacionTexto)
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
   if (!hoja) return respuestaJSON({ error: "Hoja no encontrada" });
 
-  hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto]);
+  hoja.appendRow([fecha, barrio, denuncia, lat, lng, urlFoto, contacto, ubicacionTexto]);
 
   return respuestaJSON({
     resultado: "ok",
@@ -262,20 +283,20 @@ function listarPublico(e) {
   return respuestaJSON({ denuncias: lista, total: datos.length });
 }
 
-// =================== LISTAR ADMIN (datos completos + auth) ===================
+// =================== LISTAR ADMIN (datos completos, protegido con API_KEY) ===================
 
 function listarAdmin(e) {
-  var auth = verificarTokenAdmin(e.parameter.token);
-  if (!auth.ok) {
-    return respuestaJSON({ error: auth.error || "No autorizado" });
+  var apiKey = cfg("API_KEY");
+  if (!apiKey || e.parameter.apiKey !== apiKey) {
+    return respuestaJSON({ error: "No autorizado" });
   }
 
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
   if (!hoja || hoja.getLastRow() < 2) {
-    return respuestaJSON({ denuncias: [], admin: auth.email });
+    return respuestaJSON({ denuncias: [] });
   }
 
-  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).getValues();
+  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 8).getValues();
   var denuncias = datos.map(function (fila) {
     return {
       fecha: fila[0],
@@ -283,11 +304,13 @@ function listarAdmin(e) {
       denuncia: fila[2],
       lat: fila[3],
       lng: fila[4],
-      foto: fila[5] || ""
+      foto: fila[5] || "",
+      contacto: fila[6] || "",
+      ubicacionTexto: fila[7] || ""
     };
   });
 
-  return respuestaJSON({ denuncias: denuncias, admin: auth.email });
+  return respuestaJSON({ denuncias: denuncias });
 }
 
 // =================== GUARDAR FOTO EN DRIVE ===================
@@ -315,7 +338,8 @@ function guardarFotoEnDrive(fotoBase64, barrio, fecha) {
   var archivo = carpeta.createFile(blob);
 
   archivo.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
-  return archivo.getUrl();
+  // Retornar URL directa embebible (no la página viewer de Drive)
+  return "https://drive.google.com/uc?id=" + archivo.getId() + "&export=view";
 }
 
 // =================== SETUP HELPER ===================

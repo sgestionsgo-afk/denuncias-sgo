@@ -299,6 +299,130 @@ body {
 }
 
 .modal-link {
+  display: block;
+  margin-top: 0.75rem;
+  color: #9D4EDD;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.modal-link:hover { text-decoration: underline; }
+
+.modal-img-error {
+  color: #ff6b7a;
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+.modal-img-error a { color: #9D4EDD; }
+
+/* ---- Auditoría ---- */
+
+.audit-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+
+.audit-title {
+  color: #888;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.audit-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.badge-ok {
+  background: rgba(0,200,83,0.12);
+  border: 1px solid rgba(0,200,83,0.25);
+  color: #4caf50;
+}
+
+.badge-fail {
+  background: rgba(255,71,87,0.12);
+  border: 1px solid rgba(255,71,87,0.3);
+  color: #ff6b7a;
+}
+
+.badge-warn {
+  background: rgba(255,193,7,0.12);
+  border: 1px solid rgba(255,193,7,0.3);
+  color: #ffd54f;
+}
+
+/* ---- Sort en cabeceras ---- */
+
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.th-sortable:hover {
+  background: rgba(123,44,191,0.25);
+}
+
+.th-active {
+  background: rgba(123,44,191,0.3) !important;
+  color: #e0b8ff;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  margin-left: 0.3rem;
+  opacity: 0.9;
+}
+
+.sort-none {
+  opacity: 0.3;
+}
+
+/* ---- Foto thumbnail ---- */
+
+.td-foto {
+  width: 80px;
+  text-align: center;
+}
+
+.foto-thumb-wrap {
+  cursor: pointer;
+  display: inline-block;
+}
+
+.foto-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: opacity 0.2s;
+  display: block;
+}
+
+.foto-thumb:hover {
+  opacity: 0.8;
+  border-color: #9D4EDD;
+}
+
+/* ---- Ubicación texto ---- */
+
+.td-ubicacion {
+  max-width: 200px;
+  font-size: 0.8rem;
+  color: #aaa;
+  line-height: 1.3;
+}
+
+.modal-link {
   display: inline-block;
   margin-top: 0.75rem;
   color: #9D4EDD;

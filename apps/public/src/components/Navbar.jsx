@@ -10,7 +10,7 @@ function Navbar({ tema, toggleTema }) {
     <nav className="navbar">
       <div className="navbar-marca">
         <img src="/assets/logo lla.png" alt="Logo" className="navbar-logo" />
-        Denuncias Santiago Capital
+        Denuncias — Ciudad de Santiago del Estero
       </div>
       <div className="navbar-links">
         <Link to="/" className={esActivo("/")}>Denunciar</Link>

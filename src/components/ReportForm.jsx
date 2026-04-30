@@ -1,11 +1,13 @@
 // =============================================================
 // ReportForm.jsx — Formulario para enviar denuncias
 // Incluye: selección de barrio, texto de denuncia,
-// captura opcional de geolocalización.
+// selección de ubicación en mapa, contacto opcional
 // =============================================================
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
+import L from "leaflet";
 import BARRIOS from "../config/barrios";
-import { GOOGLE_SCRIPT_URL } from "../config/api";
+import { GOOGLE_SCRIPT_URL, MAP_CENTER, MAP_ZOOM } from "../config/api";
 
 function ReportForm() {
   // Estado del formulario
@@ -13,30 +15,51 @@ function ReportForm() {
   const [denuncia, setDenuncia] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [ubicacionTexto, setUbicacionTexto] = useState("");
+  const [contacto, setContacto] = useState("");
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
-  const [geoError, setGeoError] = useState("");
+  const [mostrarMapaSeleccion, setMostrarMapaSeleccion] = useState(false);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
 
-  // --- Capturar ubicación del navegador ---
-  const capturarUbicacion = () => {
-    setGeoError("");
-    if (!navigator.geolocation) {
-      setGeoError("Tu navegador no soporta geolocalización.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude.toFixed(6));
-        setLng(pos.coords.longitude.toFixed(6));
+  // --- Componente para detectar clicks en el mapa ---
+  function MapClickHandler() {
+    useMapEvents({
+      click(e) {
+        const { lat: newLat, lng: newLng } = e.latlng;
+        setLat(newLat.toFixed(6));
+        setLng(newLng.toFixed(6));
+        
+        // Actualizar marker en el mapa
+        if (markerRef.current) {
+          markerRef.current.setLatLng([newLat, newLng]);
+        } else {
+          const marker = L.marker([newLat, newLng], {
+            icon: L.icon({
+              iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+              shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+            }),
+          }).addTo(mapRef.current);
+          markerRef.current = marker;
+        }
       },
-      (err) => {
-        setGeoError("No se pudo obtener la ubicación. Verificá los permisos.");
-        console.warn("Error geolocalización:", err);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    });
+    return null;
+  }
+
+  // --- Validar contacto (básico) ---
+  const validarContacto = (valor) => {
+    // Máximo 100 caracteres
+    if (valor.length > 100) return false;
+    // Permitir: números, caracteres comunes de teléfono y email
+    const regex = /^[a-zA-Z0-9@._+\-() ]*$/;
+    return regex.test(valor);
   };
 
   // --- Manejar subida de foto ---
@@ -89,6 +112,16 @@ function ReportForm() {
       setMensaje({ tipo: "error", texto: "La descripción es muy corta (mínimo 10 caracteres)." });
       return;
     }
+    // Requerir ubicación
+    if (!lat || !lng) {
+      setMensaje({ tipo: "error", texto: "Seleccioná la ubicación del problema en el mapa." });
+      return;
+    }
+    // Validar contacto si se proporcionó
+    if (contacto && !validarContacto(contacto)) {
+      setMensaje({ tipo: "error", texto: "El contacto contiene caracteres inválidos (máx 100 caracteres)." });
+      return;
+    }
 
     setEnviando(true);
     setMensaje(null);
@@ -97,13 +130,16 @@ function ReportForm() {
     const datos = {
       barrio,
       denuncia: denuncia.trim(),
-      lat: lat || "",
-      lng: lng || "",
+      contacto: contacto.trim() || null,
+      ubicacionProblema: {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        texto: ubicacionTexto || null,
+      },
       fecha: new Date().toISOString(),
     };
     
     // IMPORTANTE: Solo agregar fotoBase64 si hay foto
-    // Esto evita enviar strings vacías que son falsy en JavaScript
     if (fotoPreview && fotoPreview.startsWith("data:")) {
       datos.fotoBase64 = fotoPreview;
     }
@@ -112,11 +148,9 @@ function ReportForm() {
     console.log("=== ENVIANDO DENUNCIA ===");
     console.log("Barrio:", datos.barrio);
     console.log("Denuncia length:", datos.denuncia.length);
+    console.log("Contacto:", datos.contacto);
+    console.log("Ubicación:", datos.ubicacionProblema);
     console.log("Tiene foto:", datos.fotoBase64 ? true : false);
-    if (datos.fotoBase64) {
-      console.log("fotoBase64 length:", datos.fotoBase64.length);
-      console.log("fotoBase64 starts with:", datos.fotoBase64.substring(0, 60));
-    }
 
     try {
       // Enviamos como POST al Google Apps Script
@@ -129,13 +163,20 @@ function ReportForm() {
       // Google Apps Script redirige, así que aceptamos cualquier respuesta OK
       if (respuesta.ok || respuesta.redirected) {
         setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
-        // Limpiar formulario incluyendo foto
+        // Limpiar formulario
         setBarrio("");
         setDenuncia("");
         setLat("");
         setLng("");
+        setUbicacionTexto("");
+        setContacto("");
         setFoto(null);
         setFotoPreview("");
+        setMostrarMapaSeleccion(false);
+        if (markerRef.current) {
+          markerRef.current.remove();
+          markerRef.current = null;
+        }
       } else {
         throw new Error("Respuesta no exitosa");
       }
@@ -161,7 +202,7 @@ function ReportForm() {
         />
       </div>
 
-      <h2>📝 Reportar un problema en tu zona/barrio</h2>
+      <h2>Denuncia Ciudad Capital – Santiago del Estero</h2>
       <p className="form-subtitulo">
         Tu denuncia es anónima. Los detalles <strong>no</strong> se muestran públicamente.
       </p>
@@ -196,6 +237,73 @@ function ReportForm() {
         />
         <small>{denuncia.length}/1000 caracteres</small>
 
+        {/* --- Ubicación del problema (REQUERIDA) --- */}
+        <div className="ubicacion-section">
+          <label>Ubicación del problema *</label>
+          <div className="ubicacion-display">
+            <div className="ubicacion-info">
+              {lat && lng ? (
+                <>
+                  <span className="ubicacion-texto">✓ Ubicación seleccionada en el mapa</span>
+                  {ubicacionTexto && <span className="ubicacion-texto-detalle">({ubicacionTexto})</span>}
+                  <br />
+                  <small className="ubicacion-coords">{lat}, {lng}</small>
+                </>
+              ) : (
+                <span className="ubicacion-texto placeholder">Seleccioná en el mapa tocando una ubicación</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-ubicacion"
+              onClick={() => setMostrarMapaSeleccion(!mostrarMapaSeleccion)}
+            >
+              {lat && lng ? "Cambiar" : "Seleccionar en mapa"}
+            </button>
+          </div>
+
+          {/* --- Mapa para seleccionar ubicación --- */}
+          {mostrarMapaSeleccion && (
+            <div className="mapa-seleccion-wrapper">
+              <MapContainer
+                center={MAP_CENTER}
+                zoom={MAP_ZOOM}
+                className="mapa-seleccion"
+                ref={mapRef}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapClickHandler />
+              </MapContainer>
+              <small className="mapa-instruccion">Toca en el mapa para marcar la ubicación</small>
+            </div>
+          )}
+
+          {/* Input opcional para buscar dirección */}
+          <input
+            type="text"
+            placeholder="Ej: Calle Belgrano y Tucumán (opcional)"
+            maxLength="100"
+            className="ubicacion-search"
+            value={ubicacionTexto}
+            onChange={(e) => setUbicacionTexto(e.target.value)}
+          />
+        </div>
+
+        {/* --- Contacto del emisor (OPCIONAL) --- */}
+        <label htmlFor="contacto">Contacto (opcional)</label>
+        <input
+          type="text"
+          id="contacto"
+          placeholder="Teléfono o email (si deseas ser contactado)"
+          maxLength="100"
+          value={contacto}
+          onChange={(e) => setContacto(e.target.value)}
+        />
+        <small>No será público. Máx 100 caracteres.</small>
+
         {/* --- Subida de foto opcional --- */}
         <div className="foto-section">
           <label htmlFor="foto">📸 Foto de la situación (opcional)</label>
@@ -224,24 +332,6 @@ function ReportForm() {
             </div>
           )}
           <small>Máximo 5MB. Formatos: JPG, PNG, WebP</small>
-        </div>
-
-        {/* --- Geolocalización opcional --- */}
-        <div className="geo-section">
-          <label>Ubicación (opcional)</label>
-          <button
-            type="button"
-            className="btn-geo"
-            onClick={capturarUbicacion}
-          >
-            📍 Capturar mi ubicación
-          </button>
-          {lat && lng && (
-            <p className="geo-info">
-              Ubicación capturada: {lat}, {lng}
-            </p>
-          )}
-          {geoError && <p className="geo-error">{geoError}</p>}
         </div>
 
         {/* --- Mensajes de estado --- */}

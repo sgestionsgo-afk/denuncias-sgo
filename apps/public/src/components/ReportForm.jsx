@@ -1,5 +1,7 @@
-// ReportForm.jsx — Formulario con Cloudflare Turnstile CAPTCHA
+// ReportForm.jsx — Formulario con Cloudflare Turnstile CAPTCHA y selección de ubicación en mapa
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
+import L from "leaflet";
 import BARRIOS from "../config/barrios";
 import { GOOGLE_SCRIPT_URL, API_KEY, TURNSTILE_SITE_KEY } from "../config/api";
 
@@ -8,16 +10,20 @@ function ReportForm() {
   const [denuncia, setDenuncia] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [ubicacionTexto, setUbicacionTexto] = useState("");
+  const [contacto, setContacto] = useState("");
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
-  const [geoError, setGeoError] = useState("");
+  const [mostrarMapaSeleccion, setMostrarMapaSeleccion] = useState(false);
 
   // --- Turnstile CAPTCHA ---
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
   const widgetIdRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
 
   const renderTurnstile = useCallback(() => {
     if (window.turnstile && turnstileRef.current && widgetIdRef.current === null) {
@@ -40,21 +46,79 @@ function ReportForm() {
     return () => clearInterval(interval);
   }, [renderTurnstile]);
 
-  // --- Geolocalización ---
-  const capturarUbicacion = () => {
-    setGeoError("");
-    if (!navigator.geolocation) {
-      setGeoError("Tu navegador no soporta geolocalización.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude.toFixed(6));
-        setLng(pos.coords.longitude.toFixed(6));
+  // --- Componente para detectar clicks en el mapa ---
+  const mapInstanceRef = useRef(null);
+  
+  function MapClickHandler() {
+    const map = useMap();
+    
+    useMapEvents({
+      click(e) {
+        const { lat: newLat, lng: newLng } = e.latlng;
+        setLat(newLat.toFixed(6));
+        setLng(newLng.toFixed(6));
+        
+        // Actualizar o crear marcador en el mapa
+        if (markerRef.current) {
+          markerRef.current.setLatLng([newLat, newLng]);
+        } else {
+          // Crear icono personalizado usando HTML
+          const customIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-pin" style="width: 32px; height: 32px; background: #7B2CBF; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(123, 44, 191, 0.6); cursor: pointer;"><span style="color: white; font-size: 18px; font-weight: bold;">•</span></div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -16]
+          });
+          
+          const marker = L.marker([newLat, newLng], { icon: customIcon })
+            .addTo(map)
+            .bindPopup(`<div style="font-size: 12px;"><strong>Ubicación:</strong><br>${newLat.toFixed(6)}, ${newLng.toFixed(6)}</div>`);
+          markerRef.current = marker;
+        }
       },
-      () => setGeoError("No se pudo obtener la ubicación. Verificá los permisos."),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    });
+    
+    mapInstanceRef.current = map;
+    return null;
+  }
+
+  // --- Componente para renderizar marcador persistente ---
+  function MarkerRenderer() {
+    const map = useMap();
+    
+    useEffect(() => {
+      if (lat && lng && map) {
+        // Limpiar marcador anterior si existe
+        if (markerRef.current) {
+          map.removeLayer(markerRef.current);
+          markerRef.current = null;
+        }
+        
+        // Crear icono personalizado usando HTML
+        const customIcon = L.divIcon({
+          className: 'custom-marker',
+          html: `<div class="marker-pin" style="width: 32px; height: 32px; background: #7B2CBF; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(123, 44, 191, 0.6); cursor: pointer;"><span style="color: white; font-size: 18px; font-weight: bold;">•</span></div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -16]
+        });
+        
+        const marker = L.marker([parseFloat(lat), parseFloat(lng)], { icon: customIcon })
+          .addTo(map)
+          .bindPopup(`<div style="font-size: 12px;"><strong>Ubicación:</strong><br>${lat}, ${lng}</div>`);
+        markerRef.current = marker;
+      }
+    }, [lat, lng, map]);
+    
+    return null;
+  }
+
+  // --- Validar contacto (básico) ---
+  const validarContacto = (valor) => {
+    if (valor.length > 100) return false;
+    const regex = /^[a-zA-Z0-9@._+\-() ]*$/;
+    return regex.test(valor);
   };
 
   // --- Foto ---
@@ -86,8 +150,16 @@ function ReportForm() {
       setMensaje({ tipo: "error", texto: "La descripción es muy corta (mín 10 caracteres)." });
       return;
     }
+    if (!lat || !lng) {
+      setMensaje({ tipo: "error", texto: "Seleccioná la ubicación del problema en el mapa." });
+      return;
+    }
     if (!captchaToken) {
       setMensaje({ tipo: "error", texto: "Completá la verificación CAPTCHA." });
+      return;
+    }
+    if (contacto && !validarContacto(contacto)) {
+      setMensaje({ tipo: "error", texto: "El contacto contiene caracteres inválidos (máx 100 caracteres)." });
       return;
     }
 
@@ -100,8 +172,12 @@ function ReportForm() {
       captchaToken,
       barrio,
       denuncia: denuncia.trim(),
-      lat: lat || "",
-      lng: lng || "",
+      contacto: contacto.trim() || null,
+      ubicacionProblema: {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        texto: ubicacionTexto || null,
+      },
     };
 
     if (fotoPreview && fotoPreview.startsWith("data:image/")) {
@@ -120,8 +196,9 @@ function ReportForm() {
 
       if (data.resultado === "ok") {
         setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
-        setBarrio(""); setDenuncia(""); setLat(""); setLng("");
-        setFoto(null); setFotoPreview("");
+        setBarrio(""); setDenuncia(""); setLat(""); setLng(""); setUbicacionTexto(""); setContacto("");
+        setFoto(null); setFotoPreview(""); setMostrarMapaSeleccion(false);
+        if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
         // Reset CAPTCHA
         if (widgetIdRef.current !== null && window.turnstile) {
           window.turnstile.reset(widgetIdRef.current);
@@ -148,7 +225,7 @@ function ReportForm() {
         <img src="/assets/logo lla.png" alt="Logo La Libertad Avanza" className="form-logo" />
       </div>
 
-      <h2>📝 Reportar un problema en tu zona/barrio</h2>
+      <h2>Reportá un problema en tu zona/barrio</h2>
       <p className="form-subtitulo">
         Tu denuncia es anónima. Los detalles <strong>no</strong> se muestran públicamente.
       </p>
@@ -170,9 +247,77 @@ function ReportForm() {
           value={denuncia} onChange={(e) => setDenuncia(e.target.value)} required />
         <small>{denuncia.length}/1000 caracteres</small>
 
+        {/* Ubicación del problema (REQUERIDA) */}
+        <div className="ubicacion-section">
+          <label>Ubicación del problema *</label>
+          <div className="ubicacion-display">
+            <div className="ubicacion-info">
+              {lat && lng ? (
+                <>
+                  <span className="ubicacion-texto">✓ Ubicación seleccionada en el mapa</span>
+                  {ubicacionTexto && <span className="ubicacion-texto-detalle">({ubicacionTexto})</span>}
+                  <br />
+                  <small className="ubicacion-coords">{lat}, {lng}</small>
+                </>
+              ) : (
+                <span className="ubicacion-texto placeholder">Seleccioná en el mapa tocando una ubicación</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-ubicacion"
+              onClick={() => setMostrarMapaSeleccion(!mostrarMapaSeleccion)}
+            >
+              {lat && lng ? "Cambiar" : "Seleccionar en mapa"}
+            </button>
+          </div>
+
+          {/* Mapa para seleccionar ubicación */}
+          {mostrarMapaSeleccion && (
+            <div className="mapa-seleccion-wrapper">
+              <MapContainer
+                center={[-27.7834, -64.2642]}
+                zoom={13}
+                className="mapa-seleccion"
+                ref={mapRef}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapClickHandler />
+                <MarkerRenderer />
+              </MapContainer>
+              <small className="mapa-instruccion">Toca en el mapa para marcar la ubicación</small>
+            </div>
+          )}
+
+          {/* Input opcional para dirección */}
+          <input
+            type="text"
+            placeholder="Ej: Calle Belgrano y Tucumán (opcional)"
+            maxLength="100"
+            className="ubicacion-search"
+            value={ubicacionTexto}
+            onChange={(e) => setUbicacionTexto(e.target.value)}
+          />
+        </div>
+
+        {/* Contacto (OPCIONAL) */}
+        <label htmlFor="contacto">Contacto (opcional)</label>
+        <input
+          type="text"
+          id="contacto"
+          placeholder="Teléfono o email (si deseas ser contactado)"
+          maxLength="100"
+          value={contacto}
+          onChange={(e) => setContacto(e.target.value)}
+        />
+        <small>No será público. Máx 100 caracteres.</small>
+
         {/* Foto */}
         <div className="foto-section">
-          <label>Foto (opcional)</label>
+          <label>📸 Foto de la situación (opcional)</label>
           <input type="file" accept="image/*" capture="environment" onChange={manejarFoto} />
           {fotoPreview && (
             <div className="foto-preview">
@@ -182,14 +327,12 @@ function ReportForm() {
           )}
         </div>
 
-        {/* Geolocalización */}
-        <div className="geo-section">
-          <button type="button" onClick={capturarUbicacion} className="btn-geo">
-            📍 Capturar mi ubicación
-          </button>
-          {lat && lng && <small>Lat: {lat}, Lng: {lng}</small>}
-          {geoError && <small className="mensaje-error">{geoError}</small>}
-        </div>
+        {/* Mensajes */}
+        {mensaje && (
+          <div className={`mensaje mensaje-${mensaje.tipo}`}>
+            {mensaje.texto}
+          </div>
+        )}
 
         {/* CAPTCHA Turnstile */}
         <div ref={turnstileRef} style={{ margin: "1rem 0" }}></div>
@@ -199,12 +342,6 @@ function ReportForm() {
           {enviando ? "Enviando..." : "Enviar denuncia"}
         </button>
       </form>
-
-      {mensaje && (
-        <p className={`mensaje ${mensaje.tipo === "exito" ? "mensaje-exito" : "mensaje-error"}`}>
-          {mensaje.texto}
-        </p>
-      )}
     </div>
   );
 }
