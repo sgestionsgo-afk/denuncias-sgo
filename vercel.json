@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/admin/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    },
+    {
+      "src": "apps/public/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin/(.*)",
+      "dest": "apps/admin/build/index.html"
+    },
+    {
+      "src": "/mapa(.*)",
+      "dest": "apps/public/build/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "build/index.html"
+    }
+  ]
+}

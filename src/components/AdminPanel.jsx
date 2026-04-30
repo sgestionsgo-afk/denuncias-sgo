@@ -1,236 +1,243 @@
-// =============================================================
-// AdminPanel.jsx — Panel de administración protegido
-// Los administradores pueden ver TODAS las denuncias con detalles.
-// Protegido por contraseña simple (del lado del cliente).
-// =============================================================
-import React, { useState } from "react";
-import { GOOGLE_SCRIPT_URL, ADMIN_PASSWORD } from "../config/api";
+// AdminPanel.jsx — Panel admin con sort, fotos embebidas, coords corregidas y auditoría
+import React, { useState, useEffect, useCallback } from "react";
+import { GOOGLE_SCRIPT_URL, API_KEY } from "../config/api";
+
+// Convierte URL de Drive viewer al formato de imagen directa embebible
+function getDriveImageUrl(url) {
+  if (!url) return null;
+  if (url.includes("drive.google.com/uc")) return url;
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) return `https://drive.google.com/uc?id=${match[1]}&export=view`;
+  if (url.includes("lh3.googleusercontent.com")) return url;
+  return url;
+}
+
+function SortIcon({ field, sortField, sortDir }) {
+  if (sortField !== field) return <span className="sort-icon sort-none">⇅</span>;
+  return <span className="sort-icon">{sortDir === "asc" ? "↑" : "↓"}</span>;
+}
 
 function AdminPanel() {
-  const [autenticado, setAutenticado] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [errorAuth, setErrorAuth] = useState("");
-
   const [denuncias, setDenuncias] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [filtroBarrio, setFiltroBarrio] = useState("");
-  
-  // Estado para modal de foto
-  const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
+  const [fotoModal, setFotoModal] = useState(null);
+  const [sortField, setSortField] = useState("fecha");
+  const [sortDir, setSortDir] = useState("desc");
+  const [auditoria, setAuditoria] = useState(null);
 
-  // --- Verificar contraseña ---
-  const verificarPassword = (e) => {
-    e.preventDefault();
-    if (passwordInput === ADMIN_PASSWORD) {
-      setAutenticado(true);
-      setErrorAuth("");
-      cargarDenuncias();
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      setErrorAuth("Contraseña incorrecta.");
+      setSortField(field);
+      setSortDir("desc");
     }
   };
 
-  // --- Cargar TODAS las denuncias (con detalles) ---
-  const cargarDenuncias = async () => {
+  const cargar = useCallback(async () => {
     setCargando(true);
     setError("");
+    const inicio = Date.now();
     try {
-      const url = `${GOOGLE_SCRIPT_URL}?accion=listar_admin&clave=${encodeURIComponent(ADMIN_PASSWORD)}`;
+      const url = `${GOOGLE_SCRIPT_URL}?accion=listar_admin&apiKey=${encodeURIComponent(API_KEY)}`;
       const resp = await fetch(url);
       const data = await resp.json();
+      const ms = Date.now() - inicio;
 
-      if (data && data.denuncias) {
-        setDenuncias(data.denuncias);
-      } else if (data && data.error) {
+      if (data.error) {
         setError(data.error);
+        setAuditoria({ estado: "error", errorMsg: data.error, ms, scriptUrl: !!GOOGLE_SCRIPT_URL, apiKey: !!API_KEY });
+      } else if (data.denuncias) {
+        setDenuncias(data.denuncias);
+        const conFoto = data.denuncias.filter((d) => d.foto).length;
+        const conCoords = data.denuncias.filter((d) => d.lat && d.lng).length;
+        const conContacto = data.denuncias.filter((d) => d.contacto).length;
+        setAuditoria({
+          estado: "ok", ms,
+          total: data.denuncias.length,
+          conFoto, conCoords, conContacto,
+          scriptUrl: !!GOOGLE_SCRIPT_URL, apiKey: !!API_KEY,
+        });
       }
     } catch (err) {
-      console.error("Error cargando denuncias admin:", err);
-      setError("Error al cargar las denuncias.");
+      const ms = Date.now() - inicio;
+      setError("Error de conexión al cargar denuncias.");
+      setAuditoria({ estado: "error", errorMsg: err.message, ms, scriptUrl: !!GOOGLE_SCRIPT_URL, apiKey: !!API_KEY });
     } finally {
       setCargando(false);
     }
-  };
+  }, []);
 
-  // --- Cerrar sesión ---
-  const cerrarSesion = () => {
-    setAutenticado(false);
-    setPasswordInput("");
-    setDenuncias([]);
-  };
+  useEffect(() => {
+    setAuditoria({ estado: "cargando", scriptUrl: !!GOOGLE_SCRIPT_URL, apiKey: !!API_KEY });
+    cargar();
+  }, [cargar]);
 
-  // --- Filtrar denuncias por barrio ---
-  const denunciasFiltradas = filtroBarrio
+  const filtradas = filtroBarrio
     ? denuncias.filter((d) => d.barrio === filtroBarrio)
     : denuncias;
 
-  // Barrios únicos en los datos
-  const barriosEnDatos = [...new Set(denuncias.map((d) => d.barrio))].sort();
+  const sorted = [...filtradas].sort((a, b) => {
+    let va = a[sortField] ?? "";
+    let vb = b[sortField] ?? "";
+    if (sortField === "fecha") {
+      const ta = new Date(va).getTime() || 0;
+      const tb = new Date(vb).getTime() || 0;
+      return sortDir === "asc" ? ta - tb : tb - ta;
+    }
+    va = String(va).toLowerCase();
+    vb = String(vb).toLowerCase();
+    return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
 
-  // --- Si no está autenticado, mostrar login ---
-  if (!autenticado) {
-    return (
-      <div className="admin-container">
-        <h2>🔒 Panel de Administración</h2>
-        <p>Ingresá la contraseña para acceder a las denuncias.</p>
-        <form onSubmit={verificarPassword} className="admin-login">
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={passwordInput}
-            onChange={(e) => setPasswordInput(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" className="btn-enviar">
-            Ingresar
-          </button>
-        </form>
-        {errorAuth && <p className="mensaje mensaje-error">{errorAuth}</p>}
-      </div>
-    );
-  }
+  const barrios = [...new Set(denuncias.map((d) => d.barrio))].sort();
 
-  // --- Panel autenticado ---
+  const formatFecha = (f) => {
+    if (!f) return "—";
+    try {
+      const d = new Date(f);
+      return (
+        d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) +
+        " " +
+        d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+      );
+    } catch (_) { return String(f); }
+  };
+
+  const exportarCSV = () => {
+    const header = "Fecha,Barrio,Denuncia,Lat,Lng,Foto,Contacto,Ubicacion\n";
+    const rows = sorted.map((d) =>
+      [d.fecha, d.barrio, `"${(d.denuncia || "").replace(/"/g, '""')}"`, d.lat, d.lng, d.foto, d.contacto, `"${(d.ubicacionTexto || "").replace(/"/g, '""')}"`].join(",")
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `denuncias_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const Th = ({ field, children }) => (
+    <th className={`th-sortable${sortField === field ? " th-active" : ""}`} onClick={() => handleSort(field)}>
+      {children} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </th>
+  );
+
+
   return (
-    <div className="admin-container">
-      <div className="admin-header">
-        <h2>🔓 Panel de Administración</h2>
-        <button onClick={cerrarSesion} className="btn-cerrar-sesion">
-          Cerrar sesión
-        </button>
-      </div>
+    <div className="admin-layout">
+      <header className="admin-header">
+        <div className="admin-header-left">
+          <h1>📋 Panel de Administración</h1>
+        </div>
+        <div className="admin-header-right">
+          <span className="admin-system-label">Denuncias Santiago Capital</span>
+        </div>
+      </header>
 
-      <div className="admin-controles">
-        <button onClick={cargarDenuncias} className="btn-geo" disabled={cargando}>
-          🔄 Recargar datos
-        </button>
+      {auditoria && (
+        <div className="audit-panel">
+          <span className="audit-title">🔍 Estado del sistema</span>
+          <span className={`audit-badge ${auditoria.scriptUrl ? "badge-ok" : "badge-fail"}`}>
+            {auditoria.scriptUrl ? "✅" : "❌"} Script URL
+          </span>
+          <span className={`audit-badge ${auditoria.apiKey ? "badge-ok" : "badge-fail"}`}>
+            {auditoria.apiKey ? "✅" : "❌"} API Key
+          </span>
+          <span className={`audit-badge ${auditoria.estado === "ok" ? "badge-ok" : auditoria.estado === "cargando" ? "badge-warn" : "badge-fail"}`}>
+            {auditoria.estado === "ok" ? "✅" : auditoria.estado === "cargando" ? "⏳" : "❌"} Conexión {auditoria.ms ? `(${auditoria.ms}ms)` : ""}
+          </span>
+          {auditoria.estado === "ok" && (
+            <>
+              <span className="audit-badge badge-ok">📄 {auditoria.total} registros</span>
+              <span className={`audit-badge ${auditoria.conFoto > 0 ? "badge-ok" : "badge-warn"}`}>🖼️ {auditoria.conFoto} con foto</span>
+              <span className={`audit-badge ${auditoria.conCoords > 0 ? "badge-ok" : "badge-warn"}`}>📍 {auditoria.conCoords} con coords</span>
+              {auditoria.conContacto > 0 && <span className="audit-badge badge-ok">📞 {auditoria.conContacto} con contacto</span>}
+            </>
+          )}
+          {auditoria.errorMsg && <span className="audit-badge badge-fail" title={auditoria.errorMsg}>⚠️ {auditoria.errorMsg.substring(0, 80)}</span>}
+        </div>
+      )}
 
-        {/* Filtro por barrio */}
-        <select
-          value={filtroBarrio}
-          onChange={(e) => setFiltroBarrio(e.target.value)}
-        >
+      <div className="admin-controls">
+        <button onClick={cargar} className="btn-action" disabled={cargando}>🔄 {cargando ? "Cargando..." : "Recargar"}</button>
+        <select value={filtroBarrio} onChange={(e) => setFiltroBarrio(e.target.value)} className="select-barrio">
           <option value="">Todos los barrios</option>
-          {barriosEnDatos.map((b) => (
-            <option key={b} value={b}>{b}</option>
-          ))}
+          {barrios.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
-
-        <span className="admin-conteo">
-          Mostrando {denunciasFiltradas.length} de {denuncias.length} denuncias
-        </span>
+        <button onClick={exportarCSV} className="btn-action" disabled={sorted.length === 0}>📥 Exportar CSV</button>
+        <span className="admin-count">{sorted.length} de {denuncias.length} denuncias</span>
       </div>
 
-      {cargando && <p className="cargando">Cargando denuncias...</p>}
-      {error && <p className="mensaje mensaje-error">{error}</p>}
+      {error && <div className="admin-error">{error}</div>}
 
-      {/* Tabla de denuncias */}
-      {denunciasFiltradas.length > 0 && (
-        <div className="tabla-wrapper">
-          <table className="tabla-denuncias">
+      {sorted.length > 0 && (
+        <div className="table-wrapper">
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>#</th>
-                <th>Fecha</th>
-                <th>Barrio</th>
-                <th>Denuncia</th>
+                <Th field="fecha">Fecha</Th>
+                <Th field="barrio">Barrio</Th>
+                <Th field="denuncia">Denuncia</Th>
                 <th>Foto</th>
-                <th>Coordenadas Exactas</th>
+                <th>Coordenadas</th>
+                <Th field="contacto">Contacto</Th>
+                <th>Ubicación</th>
               </tr>
             </thead>
             <tbody>
-              {denunciasFiltradas.map((d, i) => (
-                <tr key={i}>
-                  <td>{i + 1}</td>
-                  <td className="col-fecha">{formatearFecha(d.fecha)}</td>
-                  <td>{d.barrio}</td>
-                  <td className="col-denuncia">{d.denuncia}</td>
-                  <td className="col-foto">
-                    {d.foto ? (
-                      <button
-                        className="btn-ver-foto"
-                        onClick={() => setFotoSeleccionada(d.foto)}
-                        title="Ver foto"
-                      >
-                        🖼️ Ver foto
-                      </button>
-                    ) : (
-                      <span className="sin-foto">Sin foto</span>
-                    )}
-                  </td>
-                  <td className="col-ubicacion">
-                    {d.lat && d.lng ? (
-                      <>
-                        <div className="coords-display">
-                          <strong>Lat:</strong> {parseFloat(d.lat).toFixed(4)} | <strong>Lng:</strong> {parseFloat(d.lng).toFixed(4)}
+              {sorted.map((d, i) => {
+                const imgUrl = getDriveImageUrl(d.foto);
+                return (
+                  <tr key={i}>
+                    <td>{i + 1}</td>
+                    <td className="td-fecha">{formatFecha(d.fecha)}</td>
+                    <td>{d.barrio}</td>
+                    <td className="td-denuncia">{d.denuncia}</td>
+                    <td className="td-foto">
+                      {imgUrl ? (
+                        <div className="foto-thumb-wrap" onClick={() => setFotoModal(imgUrl)}>
+                          <img src={imgUrl} alt="Foto" className="foto-thumb" onError={(e) => {e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "inline-flex";}} />
+                          <a href={imgUrl} target="_blank" rel="noopener noreferrer" className="btn-foto" style={{display: "none"}} onClick={(e) => e.stopPropagation()}>🔗 Abrir</a>
                         </div>
-                        <a
-                          href={`https://www.google.com/maps?q=${d.lat},${d.lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ marginTop: "0.5rem", display: "inline-block" }}
-                        >
-                          📍 Abrir en Google Maps
-                        </a>
-                      </>
-                    ) : (
-                      <span className="sin-ubicacion">Sin ubicación exacta</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      ) : "—"}
+                    </td>
+                    <td className="td-coords">
+                      {d.lat && d.lng ? (
+                        <>
+                          {parseFloat(d.lat).toFixed(5)}, {parseFloat(d.lng).toFixed(5)}
+                          <br />
+                          <a href={`https://www.google.com/maps/@${parseFloat(d.lat).toFixed(5)},${parseFloat(d.lng).toFixed(5)},15z`} target="_blank" rel="noopener noreferrer" className="link-maps">📍 Ver en Maps</a>
+                        </>
+                      ) : "—"}
+                    </td>
+                    <td>{d.contacto || "—"}</td>
+                    <td className="td-ubicacion">{d.ubicacionTexto || "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Modal de foto ampliada */}
-      {fotoSeleccionada && (
-        <div className="modal-foto" onClick={() => setFotoSeleccionada(null)}>
-          <div className="modal-contenido" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="btn-cerrar-modal"
-              onClick={() => setFotoSeleccionada(null)}
-              title="Cerrar"
-            >
-              ✕
-            </button>
-            <img src={fotoSeleccionada} alt="Foto de denuncia" className="img-modal" />
-            <a
-              href={fotoSeleccionada}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-descargar-foto"
-            >
-              ⬇️ Descargar
-            </a>
+      {!cargando && sorted.length === 0 && !error && <p className="admin-empty">No hay denuncias para mostrar.</p>}
+
+      {fotoModal && (
+        <div className="modal-overlay" onClick={() => setFotoModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setFotoModal(null)}>✕</button>
+            <img src={fotoModal} alt="Foto denuncia" className="modal-img" onError={(e) => {e.currentTarget.style.display = "none"; e.currentTarget.insertAdjacentHTML("afterend", `<p class="modal-img-error">No se pudo cargar la imagen.<br/><a href="${fotoModal}" target="_blank" rel="noopener noreferrer">Abrir en Drive →</a></p>`);}} />
+            <a href={fotoModal} target="_blank" rel="noopener noreferrer" className="modal-link">Abrir en nueva pestaña</a>
           </div>
         </div>
       )}
-
-      {!cargando && denunciasFiltradas.length === 0 && !error && (
-        <p className="sin-datos">No hay denuncias para mostrar.</p>
-      )}
     </div>
   );
-}
-
-// Formatear fecha ISO a formato legible
-function formatearFecha(fechaISO) {
-  if (!fechaISO) return "—";
-  try {
-    const fecha = new Date(fechaISO);
-    return fecha.toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return fechaISO;
-  }
 }
 
 export default AdminPanel;
