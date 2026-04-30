@@ -255,11 +255,8 @@ function crearDenuncia(datos) {
 // Devuelve SOLO { barrio, cantidad } — sin texto, sin coords exactas, sin fotos
 
 function listarPublico(e) {
-  var apiKey = cfg("API_KEY");
-  if (apiKey && e.parameter.apiKey !== apiKey) {
-    return respuestaJSON({ error: "API key inválida" });
-  }
-
+  // Endpoint público — solo estadísticas agregadas, sin datos personales
+  // No requiere API key
   if (!checkRateLimit("listar", 120)) {
     return respuestaJSON({ error: "Demasiadas solicitudes" });
   }

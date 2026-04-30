@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
-import { GOOGLE_SCRIPT_URL, MAP_CENTER, MAP_ZOOM } from "../config/api";
+import { GOOGLE_SCRIPT_URL, API_KEY, MAP_CENTER, MAP_ZOOM } from "../config/api";
 import BARRIOS from "../config/barrios";
 
 function MapBackground() {
@@ -18,7 +18,8 @@ function MapBackground() {
   useEffect(() => {
     const cargarDenuncias = async () => {
       try {
-        const url = `${GOOGLE_SCRIPT_URL}?accion=listar_publico`;
+        const apiParam = API_KEY ? `&apiKey=${encodeURIComponent(API_KEY)}` : "";
+        const url = `${GOOGLE_SCRIPT_URL}?accion=listar_publico${apiParam}`;
         const resp = await fetch(url);
         const data = await resp.json();
         if (data && data.denuncias) {

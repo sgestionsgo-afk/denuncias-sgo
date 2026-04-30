@@ -3,11 +3,11 @@
 // Incluye: selección de barrio, texto de denuncia,
 // selección de ubicación en mapa, contacto opcional
 // =============================================================
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import BARRIOS from "../config/barrios";
-import { GOOGLE_SCRIPT_URL, MAP_CENTER, MAP_ZOOM } from "../config/api";
+import { GOOGLE_SCRIPT_URL, API_KEY, TURNSTILE_SITE_KEY, MAP_CENTER, MAP_ZOOM } from "../config/api";
 
 function ReportForm() {
   // Estado del formulario
@@ -22,8 +22,33 @@ function ReportForm() {
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
   const [mostrarMapaSeleccion, setMostrarMapaSeleccion] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const turnstileRef = useRef(null);
+  const widgetIdRef = useRef(null);
+
+  // --- Inicializar Turnstile CAPTCHA ---
+  const renderTurnstile = useCallback(() => {
+    if (window.turnstile && turnstileRef.current && widgetIdRef.current === null) {
+      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token) => setCaptchaToken(token),
+        "expired-callback": () => setCaptchaToken(""),
+        "error-callback": () => setCaptchaToken(""),
+        theme: "dark",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    renderTurnstile();
+    const interval = setInterval(() => {
+      if (widgetIdRef.current !== null) { clearInterval(interval); return; }
+      renderTurnstile();
+    }, 500);
+    return () => clearInterval(interval);
+  }, [renderTurnstile]);
 
   // --- Componente para detectar clicks en el mapa ---
   function MapClickHandler() {
@@ -117,6 +142,11 @@ function ReportForm() {
       setMensaje({ tipo: "error", texto: "Seleccioná la ubicación del problema en el mapa." });
       return;
     }
+    // Validar CAPTCHA si el site key está configurado
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setMensaje({ tipo: "error", texto: "Completá la verificación de seguridad (CAPTCHA)." });
+      return;
+    }
     // Validar contacto si se proporcionó
     if (contacto && !validarContacto(contacto)) {
       setMensaje({ tipo: "error", texto: "El contacto contiene caracteres inválidos (máx 100 caracteres)." });
@@ -128,6 +158,9 @@ function ReportForm() {
 
     // Datos a enviar
     const datos = {
+      accion: "crear",
+      apiKey: API_KEY,
+      captchaToken: captchaToken || undefined,
       barrio,
       denuncia: denuncia.trim(),
       contacto: contacto.trim() || null,
@@ -160,22 +193,36 @@ function ReportForm() {
         body: JSON.stringify(datos),
       });
 
-      // Google Apps Script redirige, así que aceptamos cualquier respuesta OK
       if (respuesta.ok || respuesta.redirected) {
-        setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
-        // Limpiar formulario
-        setBarrio("");
-        setDenuncia("");
-        setLat("");
-        setLng("");
-        setUbicacionTexto("");
-        setContacto("");
-        setFoto(null);
-        setFotoPreview("");
-        setMostrarMapaSeleccion(false);
-        if (markerRef.current) {
-          markerRef.current.remove();
-          markerRef.current = null;
+        let data = {};
+        try { data = await respuesta.json(); } catch (_) {}
+        if (data.error) {
+          setMensaje({ tipo: "error", texto: data.error });
+          // Resetear CAPTCHA en error
+          if (window.turnstile && widgetIdRef.current !== null) {
+            window.turnstile.reset(widgetIdRef.current);
+            setCaptchaToken("");
+          }
+        } else {
+          setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
+          setBarrio("");
+          setDenuncia("");
+          setLat("");
+          setLng("");
+          setUbicacionTexto("");
+          setContacto("");
+          setFoto(null);
+          setFotoPreview("");
+          setMostrarMapaSeleccion(false);
+          if (markerRef.current) {
+            markerRef.current.remove();
+            markerRef.current = null;
+          }
+          // Resetear CAPTCHA
+          if (window.turnstile && widgetIdRef.current !== null) {
+            window.turnstile.reset(widgetIdRef.current);
+            setCaptchaToken("");
+          }
         }
       } else {
         throw new Error("Respuesta no exitosa");
@@ -333,6 +380,11 @@ function ReportForm() {
           )}
           <small>Máximo 5MB. Formatos: JPG, PNG, WebP</small>
         </div>
+
+        {/* --- Verificación CAPTCHA (Cloudflare Turnstile) --- */}
+        {TURNSTILE_SITE_KEY && (
+          <div ref={turnstileRef} className="turnstile-wrapper" style={{ margin: "12px 0" }} />
+        )}
 
         {/* --- Mensajes de estado --- */}
         {mensaje && (
