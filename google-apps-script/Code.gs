@@ -74,17 +74,25 @@ function verificarTurnstile(token) {
   if (!secret) {
     // Sin configurar: omitir verificación para facilitar setup inicial
     Logger.log("TURNSTILE_SECRET no configurado — omitiendo verificación CAPTCHA");
+    // En desarrollo, permitir sin verificar
     return true;
   }
   try {
     var r = UrlFetchApp.fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      { method: "post", payload: { secret: secret, response: token } }
+      { 
+        method: "post", 
+        payload: { secret: secret, response: token },
+        muteHttpExceptions: true 
+      }
     );
-    return JSON.parse(r.getContentText()).success === true;
+    var result = JSON.parse(r.getContentText());
+    Logger.log("Turnstile response: " + JSON.stringify(result));
+    return result.success === true;
   } catch (err) {
     Logger.log("Turnstile error: " + err.message);
-    return false;
+    // En caso de error, si no está configurado, permitir
+    return !secret ? true : false;
   }
 }
 

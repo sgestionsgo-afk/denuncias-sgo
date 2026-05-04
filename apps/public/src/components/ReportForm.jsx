@@ -187,12 +187,20 @@ function ReportForm() {
     try {
       const resp = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { 
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(datos),
       });
 
       let data = {};
-      try { data = await resp.json(); } catch (_) {}
+      try { 
+        const text = await resp.text();
+        data = JSON.parse(text); 
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+        console.log("Raw response:", resp);
+      }
 
       if (data.resultado === "ok") {
         setMensaje({ tipo: "exito", texto: "¡Denuncia enviada correctamente! Gracias por tu reporte." });
@@ -209,11 +217,11 @@ function ReportForm() {
       } else if (resp.ok || resp.redirected) {
         setMensaje({ tipo: "exito", texto: "¡Denuncia enviada!" });
       } else {
-        throw new Error("Respuesta no exitosa");
+        throw new Error("Respuesta no exitosa: " + resp.status);
       }
     } catch (error) {
       console.error("Error al enviar:", error);
-      setMensaje({ tipo: "error", texto: "Hubo un error al enviar. Intentá de nuevo más tarde." });
+      setMensaje({ tipo: "error", texto: "Hubo un error al enviar. Intentá de nuevo más tarde. Error: " + error.message });
     } finally {
       setEnviando(false);
     }

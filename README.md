@@ -1,83 +1,222 @@
 # Denuncias Vía Pública — Santiago del Estero Capital
 
-App web para que cualquier persona pueda reportar problemas en la vía pública
-(baches, iluminación, basura, etc.) de Santiago del Estero Capital.
+App web para que cualquier persona pueda reportar problemas en la vía pública (baches, iluminación, basura, etc.) de Santiago del Estero Capital.
+
+**Estado:** ✅ Funcional | **Última actualización:** Mayo 2026
 
 ---
 
-## Estructura del Proyecto
+## 🚀 Inicio Rápido
 
-```
-denuncias-santiago-capital/
-├── public/
-│   └── index.html              # HTML base con CDN de Leaflet
-├── src/
-│   ├── components/
-│   │   ├── Navbar.jsx          # Barra de navegación
-│   │   ├── ReportForm.jsx      # Formulario de denuncia
-│   │   ├── MapView.jsx         # Mapa público (sin textos privados)
-│   │   └── AdminPanel.jsx      # Panel admin protegido por contraseña
-│   ├── config/
-│   │   ├── barrios.js          # Lista de barrios con coordenadas
-│   │   └── api.js              # URL del Apps Script y configuración
-│   ├── styles/
-│   │   └── App.css             # Estilos de la aplicación
-│   ├── App.jsx                 # Componente principal con rutas
-│   └── index.js                # Punto de entrada de React
-├── google-apps-script/
-│   └── Code.gs                 # Código del Google Apps Script
-├── package.json
-└── README.md                   # Este archivo
-```
+⚠️ **Si es la primera vez que configuras esto**, lee la **[GUIA_COMPLETA_SETUP.md](GUIA_COMPLETA_SETUP.md)** — tiene paso a paso de todo.
 
----
-
-## Configuración paso a paso
-
-### 1. Crear la Google Sheet
-
-1. Andá a [Google Sheets](https://sheets.google.com) y creá una hoja nueva.
-2. Renombrá la primera hoja (pestaña de abajo) a: **`Denuncias`**
-3. En la **fila 1**, poné estos encabezados exactos:
-
-| A | B | C | D | E |
-|---|---|---|---|---|
-| Fecha | Barrio | Denuncia | Latitud | Longitud |
-
-### 2. Crear el Google Apps Script
-
-1. Dentro de la misma Google Sheet, andá a **Extensiones → Apps Script**.
-2. Se abre el editor de Apps Script. Borrá todo el contenido del archivo `Code.gs`.
-3. Copiá y pegá el contenido completo del archivo `google-apps-script/Code.gs`.
-4. **Importante:** Verificá que la variable `CLAVE_ADMIN` en el script coincida
-   con la de `src/config/api.js` (por defecto es `"admin2026"`).
-5. Guardá el proyecto (Ctrl+S).
-
-### 3. Desplegar el Apps Script como Web App
-
-1. En el editor de Apps Script, hacé clic en **Implementar → Nueva implementación**.
-2. En "Tipo", seleccioná **Aplicación web**.
-3. Configurá:
-   - **Descripción:** "API Denuncias"
-   - **Ejecutar como:** Tu cuenta de Google
-   - **Quién tiene acceso:** **Cualquier persona**
-4. Hacé clic en **Implementar**.
-5. Google te va a pedir que autorices el acceso. Aceptá los permisos.
-6. **Copiá la URL** que te da (tiene formato `https://script.google.com/macros/s/.../exec`).
-
-### 4. Configurar la URL en el proyecto React
-
-1. Abrí el archivo `src/config/api.js`.
-2. Reemplazá el valor de `GOOGLE_SCRIPT_URL` con la URL que copiaste:
-
-```javascript
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/TU_ID_REAL/exec";
-```
-
-### 5. Instalar dependencias y ejecutar
+Si ya está configurado y solo querés que funcione:
 
 ```bash
 # Instalar dependencias
+npm install
+
+# Iniciar app pública (formulario)
+cd apps/public && npm start
+
+# En otra terminal: iniciar app admin (dashboard)
+cd apps/admin && npm start
+```
+
+---
+
+## 📋 Guías Documentación
+
+| Documento | Para quién | Contenido |
+|-----------|-----------|----------|
+| [**GUIA_COMPLETA_SETUP.md**](GUIA_COMPLETA_SETUP.md) | **TODOS (leer primero)** | Paso a paso: Google Sheets, Apps Script, Cloudflare, Vercel, .env, testing |
+| [**CONFIGURACION_GOOGLE_APPS_SCRIPT.md**](CONFIGURACION_GOOGLE_APPS_SCRIPT.md) | Backend developers | Script Properties, debugging, verificación |
+| [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | Cuando algo no funciona | Errores comunes y soluciones |
+| [**ARQUITECTURA.md**](ARQUITECTURA.md) | Tech leads | Estructura del proyecto, componentes, flujo de datos |
+
+---
+
+## 📚 Estructura del Proyecto
+
+```
+denuncias-santiago-capital/
+├── apps/
+│   ├── admin/                    ← Dashboard admin (Vercel app)
+│   │   ├── public/
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   └── Dashboard.jsx
+│   │   │   ├── config/
+│   │   │   │   └── api.js
+│   │   │   └── App.jsx
+│   │   ├── .env.example
+│   │   └── package.json
+│   │
+│   └── public/                   ← App pública (Vercel app)
+│       ├── public/
+│       ├── src/
+│       │   ├── components/
+│       │   │   ├── ReportForm.jsx
+│       │   │   ├── MapView.jsx
+│       │   │   └── ...
+│       │   ├── config/
+│       │   │   ├── api.js
+│       │   │   └── barrios.js
+│       │   └── App.jsx
+│       ├── .env.example
+│       └── package.json
+│
+├── google-apps-script/           ← Backend (Google Sheets + Script)
+│   └── Code.gs                   (desplegado como Web App)
+│
+├── GUIA_COMPLETA_SETUP.md        ← 👈 LEE ESTO PRIMERO
+├── CONFIGURACION_GOOGLE_APPS_SCRIPT.md
+├── TROUBLESHOOTING.md
+└── package.json (monorepo)
+```
+
+---
+
+## ⚙️ Configuración Mínima
+
+### 1️⃣ Variables de Entorno
+
+**Para app pública** (`apps/public/.env.local`):
+```env
+REACT_APP_GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/[TU_ID]/exec
+REACT_APP_API_KEY=tu_contraseña_fuerte
+REACT_APP_TURNSTILE_SITE_KEY=0x4AAAAAAA...
+```
+
+**Para app admin** (`apps/admin/.env.local`):
+```env
+REACT_APP_GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/[TU_ID]/exec
+REACT_APP_API_KEY=tu_contraseña_fuerte
+```
+
+### 2️⃣ Script Properties (Google Apps Script)
+
+```
+TURNSTILE_SECRET = 0x4AAAAAAA... (Cloudflare)
+API_KEY = tu_contraseña_fuerte (igual a .env)
+```
+
+---
+
+## 🌍 Deployments en Producción
+
+| App | URL | Actualización |
+|-----|-----|---------------|
+| Formulario público | `denuncias-santiago.vercel.app` | `git push` → auto-deploy |
+| Dashboard admin | `admin.denuncias-santiago.vercel.app` | `git push` → auto-deploy |
+
+**Vercel Configuration:**
+- Proyecto conectado a GitHub
+- Dos apps independientes en Vercel (una por `apps/public`, otra por `apps/admin`)
+- Variables de entorno configuradas en Vercel Settings
+
+---
+
+## 🔑 Variables de Entorno (Referencia Completa)
+
+### App Pública (`apps/public/`)
+| Variable | Requerida | Origen | Ejemplo |
+|----------|-----------|--------|---------|
+| `REACT_APP_GOOGLE_SCRIPT_URL` | ✅ | Google Apps Script | `https://script.google.com/macros/s/AKfycby.../exec` |
+| `REACT_APP_API_KEY` | ✅ | Script Properties | `aB3$xK9@mL2&qW7#vD1*pZ4!jH6%tF8` |
+| `REACT_APP_TURNSTILE_SITE_KEY` | ✅ | Cloudflare | `0x4AAAAAADz_9q1P61sGjB7C` |
+
+### App Admin (`apps/admin/`)
+| Variable | Requerida | Origen | Ejemplo |
+|----------|-----------|--------|---------|
+| `REACT_APP_GOOGLE_SCRIPT_URL` | ✅ | Google Apps Script | `https://script.google.com/macros/s/AKfycby.../exec` |
+| `REACT_APP_API_KEY` | ✅ | Script Properties | `aB3$xK9@mL2&qW7#vD1*pZ4!jH6%tF8` |
+| `REACT_APP_GOOGLE_CLIENT_ID` | ⚠️ | Google Cloud | `123456789-xxxx.apps.googleusercontent.com` |
+
+---
+
+## 🔐 Seguridad
+
+**Lo que debes saber:**
+
+- ✅ CAPTCHA Cloudflare Turnstile activo (previene spam)
+- ✅ Rate limiting en servidor (30 denuncias/min por IP)
+- ✅ Sanitización de inputs (sin XSS)
+- ✅ De-duplicación automática (sin reportes repetidos)
+- ⚠️ API_KEY protege acceso admin (cambiar de "admin2026")
+- ⚠️ Google Sheet debe tener permisos limitados (solo owner puede escribir)
+
+**Para producción:**
+1. Usar API_KEY fuerte (32+ caracteres)
+2. Restringir Google Sheet a admins
+3. Activar Cloudflare Turnstile "Managed Challenge"
+4. Revisar logs regularmente
+
+---
+
+## 🛠️ Desarrollo Local
+
+### Instalar
+```bash
+npm install
+cd apps/public && npm install
+cd ../admin && npm install
+```
+
+### Iniciar (necesitas dos terminales)
+```bash
+# Terminal 1: App pública
+cd apps/public && npm start
+# http://localhost:3000
+
+# Terminal 2: App admin
+cd apps/admin && npm start
+# http://localhost:3001 o siguiente puerto disponible
+```
+
+### Build para producción
+```bash
+cd apps/public && npm run build
+cd ../admin && npm run build
+```
+
+---
+
+## 🐛 Debugging
+
+Si algo no funciona:
+
+1. **Leer**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+2. **Verificar**: Script Properties en Google Apps Script
+3. **Testear**: `curl "https://script.google.com/macros/s/.../exec?accion=listar_publico"`
+4. **Inspeccionar**: DevTools → Network → Requests al Apps Script
+
+---
+
+## 📊 Tech Stack
+
+- **Frontend**: React 18, React Leaflet (mapas), React Router
+- **Backend**: Google Apps Script + Google Sheets
+- **CAPTCHA**: Cloudflare Turnstile
+- **Hosting**: Vercel (frontend)
+- **Database**: Google Sheets (por ahora)
+
+---
+
+## 📞 Soporte
+
+- **Setup inicial**: Ver [GUIA_COMPLETA_SETUP.md](GUIA_COMPLETA_SETUP.md)
+- **Errores**: Ver [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Arquitectura**: Ver [ARQUITECTURA.md](ARQUITECTURA.md)
+- **Google Apps Script**: Ver [CONFIGURACION_GOOGLE_APPS_SCRIPT.md](CONFIGURACION_GOOGLE_APPS_SCRIPT.md)
+
+---
+
+## 📝 License
+
+Proyecto de código abierto para Santiago del Estero Capital.
+
+
 npm install
 
 # Iniciar servidor de desarrollo
