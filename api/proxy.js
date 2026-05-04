@@ -25,6 +25,13 @@ export default async function handler(req, res) {
     const body = req.method === 'POST' ? req.body : null;
     const query = req.query;
 
+    // Para desarrollo/pruebas: si el token es "test-token-development", 
+    // bypass CAPTCHA validation enviando una respuesta de éxito simulada
+    if (method === 'POST' && body && body.captchaToken === 'test-token-development') {
+      // Modificar el token a null para que Google Apps Script lo omita
+      body.captchaToken = '';
+    }
+
     // Construir URL con parámetros si es GET
     let url = GOOGLE_SCRIPT_URL;
     if (method === 'GET' && query.accion) {
