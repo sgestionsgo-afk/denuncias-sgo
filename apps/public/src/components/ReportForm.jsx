@@ -193,7 +193,6 @@ function ReportForm() {
     const datos = {
       accion: "crear",
       apiKey: API_KEY,
-      captchaToken: captchaToken || "test-token-development",  // Usar token de prueba si no hay CAPTCHA
       barrio,
       denuncia: denuncia.trim(),
       contacto: contacto.trim() || null,
@@ -204,8 +203,9 @@ function ReportForm() {
       },
     };
 
-    if (fotoPreview && fotoPreview.startsWith("data:image/")) {
-      datos.fotoBase64 = fotoPreview;
+    // Solo incluir CAPTCHA si no es token de prueba
+    if (captchaToken && captchaToken !== "test-token-development") {
+      datos.captchaToken = captchaToken;
     }
 
     try {
