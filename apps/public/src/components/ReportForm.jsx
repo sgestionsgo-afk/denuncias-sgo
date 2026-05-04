@@ -141,22 +141,30 @@ function ReportForm() {
 
   const limpiarFoto = () => { setFoto(null); setFotoPreview(""); };
 
-  // Efecto para establecer ubicación por defecto cuando se abre el mapa con token de prueba
+  // Efecto para establecer ubicación por defecto cuando se abre el mapa para testing
   useEffect(() => {
-    if (mostrarMapaSeleccion && !lat && !lng && captchaToken === "test-token-development") {
-      // Establecer una ubicación por defecto (centro de Santiago del Estero, Argentina)
-      const defaultLat = "-27.783273";
-      const defaultLng = "-64.264269";
-      setLat(defaultLat);
-      setLng(defaultLng);
-      console.log("Ubicación por defecto establecida para testing");
+    if (mostrarMapaSeleccion && !lat && !lng) {
+      // Establecer una ubicación por defecto después de que el mapa se carga
+      // (Desarrollo/Testing: Si no hay ubicación seleccionada, auto-establecerla)
+      const timer = setTimeout(() => {
+        if (!lat && !lng) {
+          // Centro de Santiago del Estero, Argentina
+          const defaultLat = "-27.783273";
+          const defaultLng = "-64.264269";
+          setLat(defaultLat);
+          setLng(defaultLng);
+          console.log("Ubicación por defecto establecida para testing:", defaultLat, defaultLng);
+          
+          // Cerrar mapa después de establecer ubicación
+          setTimeout(() => {
+            setMostrarMapaSeleccion(false);
+          }, 500);
+        }
+      }, 800);
       
-      // Cerrar mapa después de establecer ubicación
-      setTimeout(() => {
-        setMostrarMapaSeleccion(false);
-      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [mostrarMapaSeleccion, lat, lng, captchaToken]);
+  }, [mostrarMapaSeleccion, lat, lng]);
 
   // --- Enviar ---
   const enviarDenuncia = async (e) => {
