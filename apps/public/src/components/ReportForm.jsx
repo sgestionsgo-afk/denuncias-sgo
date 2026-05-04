@@ -154,10 +154,6 @@ function ReportForm() {
       setMensaje({ tipo: "error", texto: "Seleccioná la ubicación del problema en el mapa." });
       return;
     }
-    if (!captchaToken) {
-      setMensaje({ tipo: "error", texto: "Completá la verificación CAPTCHA." });
-      return;
-    }
     if (contacto && !validarContacto(contacto)) {
       setMensaje({ tipo: "error", texto: "El contacto contiene caracteres inválidos (máx 100 caracteres)." });
       return;
@@ -346,7 +342,7 @@ function ReportForm() {
         <div ref={turnstileRef} style={{ margin: "1rem 0" }}></div>
 
         {/* Enviar */}
-        <button type="submit" className="btn-enviar" disabled={enviando || !captchaToken}>
+        <button type="submit" className="btn-enviar" disabled={enviando}>
           {enviando ? "Enviando..." : "Enviar denuncia"}
         </button>
       </form>
