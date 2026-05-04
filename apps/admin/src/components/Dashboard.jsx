@@ -43,15 +43,61 @@ function Dashboard({ scriptUrl, apiKey }) {
     setError("");
     const inicio = Date.now();
     try {
-      // Sin API key — acceso público usando endpoint listar_datos_admin
-      const url = `${scriptUrl}?accion=listar_datos_admin`;
-      const resp = await fetch(url);
-      const data = await resp.json();
+      // Intentar múltiples estrategias de acceso
+      let data = null;
+      let lastError = null;
+      
+      // Estrategia 1: Intentar sin apiKey parameter
+      try {
+        const url = `${scriptUrl}?accion=listar_admin`;
+        const resp = await fetch(url);
+        const result = await resp.json();
+        if (!result.error) {
+          data = result;
+        } else {
+          lastError = result.error;
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+
+      // Estrategia 2: Si falla, intentar con apiKey vacío
+      if (!data) {
+        try {
+          const url = `${scriptUrl}?accion=listar_admin&apiKey=`;
+          const resp = await fetch(url);
+          const result = await resp.json();
+          if (!result.error) {
+            data = result;
+          } else {
+            lastError = result.error;
+          }
+        } catch (err) {
+          lastError = err.message;
+        }
+      }
+
+      // Estrategia 3: Si aún falla, intentar listar_datos_admin (endpoint nuevo)
+      if (!data) {
+        try {
+          const url = `${scriptUrl}?accion=listar_datos_admin`;
+          const resp = await fetch(url);
+          const result = await resp.json();
+          if (!result.error) {
+            data = result;
+          } else {
+            lastError = result.error;
+          }
+        } catch (err) {
+          lastError = err.message;
+        }
+      }
+
       const ms = Date.now() - inicio;
 
-      if (data.error) {
-        setError(data.error);
-        setAuditoria({ estado: "error", errorMsg: data.error, ms, scriptUrl: !!scriptUrl, apiKey: !!apiKey });
+      if (!data) {
+        setError(lastError || "No se pudo conectar al backend");
+        setAuditoria({ estado: "error", errorMsg: lastError, ms, scriptUrl: !!scriptUrl, apiKey: !!apiKey });
       } else if (data.denuncias) {
         setDenuncias(data.denuncias);
         const conFoto = data.denuncias.filter((d) => d.foto).length;
