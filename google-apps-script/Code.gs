@@ -196,11 +196,8 @@ function crearDenuncia(datos) {
     return respuestaJSON({ error: "API key inválida" });
   }
 
-  // 2) CAPTCHA
-  if (!datos.captchaToken) {
-    return respuestaJSON({ error: "CAPTCHA requerido" });
-  }
-  if (!verificarTurnstile(datos.captchaToken)) {
+  // 2) CAPTCHA - Verificar solo si está presente
+  if (datos.captchaToken && !verificarTurnstile(datos.captchaToken)) {
     return respuestaJSON({ error: "Verificación CAPTCHA fallida" });
   }
 

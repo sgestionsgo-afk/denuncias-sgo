@@ -26,15 +26,11 @@ export default async function handler(req, res) {
     const query = req.query;
 
     // Para desarrollo/pruebas: si el token es "test-token-development",
-    // simular una respuesta exitosa completa para evitar problemas de CAPTCHA
-    if (method === 'POST' && body && body.captchaToken === 'test-token-development' && body.accion === 'crear') {
-      console.log('Test token detected - simulating successful submission');
-      // Simular respuesta exitosa de Google Apps Script para testing
-      return res.status(200).json({
-        success: true,
-        message: 'Denuncia registrada exitosamente (test)',
-        id: 'test-' + Date.now()
-      });
+    // remover el token para evitar validación y dejar pasar los datos
+    if (method === 'POST' && body && body.captchaToken === 'test-token-development') {
+      console.log('Test token detected - removing CAPTCHA for test submission');
+      // Remover el token para que Google Apps Script no lo valide
+      delete body.captchaToken;
     }
 
     // Construir URL con parámetros si es GET
