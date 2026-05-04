@@ -1,7 +1,7 @@
 {
   "buildCommand": "cd apps/public && npm run build",
   "outputDirectory": "apps/public/build",
-  "framework": "react",
+  "framework": "create-react-app",
   "devCommand": "cd apps/public && npm start",
   "installCommand": "npm install && npm install --prefix apps/public && npm install --prefix apps/admin"
 }
