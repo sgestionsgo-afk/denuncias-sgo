@@ -292,15 +292,10 @@ function listarPublico(e) {
   return respuestaJSON({ denuncias: lista, total: datos.length });
 }
 
-// =================== LISTAR ADMIN (datos completos, protegido con API_KEY) ===================
+// =================== LISTAR ADMIN (datos completos, SIN AUTENTICACIÓN - PÚBLICO) ===================
 
 function listarAdmin(e) {
-  var apiKey = cfg("API_KEY");
-  // Si API_KEY está configurada, exigir que coincida; si no está configurada, permitir acceso
-  if (apiKey && e.parameter.apiKey !== apiKey) {
-    return respuestaJSON({ error: "No autorizado" });
-  }
-
+  // Sin autenticación — acceso público al admin
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
   if (!hoja || hoja.getLastRow() < 2) {
     return respuestaJSON({ denuncias: [] });

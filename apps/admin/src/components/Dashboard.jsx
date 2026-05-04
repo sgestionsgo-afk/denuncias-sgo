@@ -43,7 +43,8 @@ function Dashboard({ scriptUrl, apiKey }) {
     setError("");
     const inicio = Date.now();
     try {
-      const url = `${scriptUrl}?accion=listar_admin&apiKey=${encodeURIComponent(apiKey)}`;
+      // Sin API key — acceso público
+      const url = `${scriptUrl}?accion=listar_admin`;
       const resp = await fetch(url);
       const data = await resp.json();
       const ms = Date.now() - inicio;
