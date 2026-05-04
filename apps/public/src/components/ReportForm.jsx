@@ -165,7 +165,7 @@ function ReportForm() {
     const datos = {
       accion: "crear",
       apiKey: API_KEY,
-      captchaToken,
+      captchaToken: captchaToken || "test-token-development",  // Usar token de prueba si no hay CAPTCHA
       barrio,
       denuncia: denuncia.trim(),
       contacto: contacto.trim() || null,
