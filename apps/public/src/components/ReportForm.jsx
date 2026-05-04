@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import BARRIOS from "../config/barrios";
-import { GOOGLE_SCRIPT_URL, API_KEY, TURNSTILE_SITE_KEY } from "../config/api";
+import { GOOGLE_SCRIPT_URL, PROXY_API_URL, API_KEY, TURNSTILE_SITE_KEY } from "../config/api";
 
 function ReportForm() {
   const [barrio, setBarrio] = useState("");
@@ -185,7 +185,7 @@ function ReportForm() {
     }
 
     try {
-      const resp = await fetch(GOOGLE_SCRIPT_URL, {
+      const resp = await fetch(PROXY_API_URL, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
