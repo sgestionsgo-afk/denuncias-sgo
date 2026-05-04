@@ -143,23 +143,26 @@ function ReportForm() {
 
   // Efecto para establecer ubicación por defecto cuando se abre el mapa para testing
   useEffect(() => {
+    console.log("Effect triggered: mostrarMapaSeleccion =", mostrarMapaSeleccion, "lat =", lat, "lng =", lng);
+    
     if (mostrarMapaSeleccion && !lat && !lng) {
+      console.log("Condición cumplida - estableciendo ubicación por defecto en 800ms");
+      
       // Establecer una ubicación por defecto después de que el mapa se carga
-      // (Desarrollo/Testing: Si no hay ubicación seleccionada, auto-establecerla)
       const timer = setTimeout(() => {
-        if (!lat && !lng) {
-          // Centro de Santiago del Estero, Argentina
-          const defaultLat = "-27.783273";
-          const defaultLng = "-64.264269";
-          setLat(defaultLat);
-          setLng(defaultLng);
-          console.log("Ubicación por defecto establecida para testing:", defaultLat, defaultLng);
-          
-          // Cerrar mapa después de establecer ubicación
-          setTimeout(() => {
-            setMostrarMapaSeleccion(false);
-          }, 500);
-        }
+        // Centro de Santiago del Estero, Argentina
+        const defaultLat = "-27.783273";
+        const defaultLng = "-64.264269";
+        
+        console.log("Ejecutando setLat y setLng con valores:", defaultLat, defaultLng);
+        setLat(defaultLat);
+        setLng(defaultLng);
+        
+        // Cerrar mapa después de establecer ubicación
+        setTimeout(() => {
+          console.log("Cerrando mapa");
+          setMostrarMapaSeleccion(false);
+        }, 300);
       }, 800);
       
       return () => clearTimeout(timer);
