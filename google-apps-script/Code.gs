@@ -165,6 +165,7 @@ function doGet(e) {
 
   if (accion === "listar_publico") return listarPublico(e);
   if (accion === "listar_admin")   return listarAdmin(e);
+  if (accion === "listar_datos_admin")   return listarDatosAdmin(e);
 
   return respuestaJSON({ error: "Acción no reconocida" });
 }
@@ -296,6 +297,32 @@ function listarPublico(e) {
 
 function listarAdmin(e) {
   // Sin autenticación — acceso público al admin
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
+  if (!hoja || hoja.getLastRow() < 2) {
+    return respuestaJSON({ denuncias: [] });
+  }
+
+  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 8).getValues();
+  var denuncias = datos.map(function (fila) {
+    return {
+      fecha: fila[0],
+      barrio: fila[1],
+      denuncia: fila[2],
+      lat: fila[3],
+      lng: fila[4],
+      foto: fila[5] || "",
+      contacto: fila[6] || "",
+      ubicacionTexto: fila[7] || ""
+    };
+  });
+
+  return respuestaJSON({ denuncias: denuncias });
+}
+
+// =================== LISTAR DATOS ADMIN (alternativa pública, SIN AUTENTICACIÓN) ===================
+
+function listarDatosAdmin(e) {
+  // Endpoint público alternativo para datos admin completos
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOMBRE_HOJA);
   if (!hoja || hoja.getLastRow() < 2) {
     return respuestaJSON({ denuncias: [] });
