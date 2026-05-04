@@ -141,6 +141,23 @@ function ReportForm() {
 
   const limpiarFoto = () => { setFoto(null); setFotoPreview(""); };
 
+  // Efecto para establecer ubicación por defecto cuando se abre el mapa con token de prueba
+  useEffect(() => {
+    if (mostrarMapaSeleccion && !lat && !lng && captchaToken === "test-token-development") {
+      // Establecer una ubicación por defecto (centro de Santiago del Estero, Argentina)
+      const defaultLat = "-27.783273";
+      const defaultLng = "-64.264269";
+      setLat(defaultLat);
+      setLng(defaultLng);
+      console.log("Ubicación por defecto establecida para testing");
+      
+      // Cerrar mapa después de establecer ubicación
+      setTimeout(() => {
+        setMostrarMapaSeleccion(false);
+      }, 300);
+    }
+  }, [mostrarMapaSeleccion, lat, lng, captchaToken]);
+
   // --- Enviar ---
   const enviarDenuncia = async (e) => {
     e.preventDefault();
