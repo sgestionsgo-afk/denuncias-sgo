@@ -208,6 +208,8 @@ function ReportForm() {
       datos.captchaToken = captchaToken;
     }
 
+    console.log('Form submission payload:', datos);
+
     try {
       const resp = await fetch(PROXY_API_URL, {
         method: "POST",
