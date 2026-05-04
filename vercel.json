@@ -1,4 +1,5 @@
 {
+  "rootDirectory": ".",
   "buildCommand": "cd apps/public && npm run build",
   "outputDirectory": "apps/public/build",
   "framework": "create-react-app",
