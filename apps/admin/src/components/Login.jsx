@@ -1,52 +1,40 @@
-// Login.jsx — Pantalla de login con Google Sign-In
-import React, { useEffect, useRef } from "react";
-import { GOOGLE_CLIENT_ID } from "../config/api";
+// Login.jsx — Pantalla de login con usuario y contraseña
+import React, { useState } from "react";
 
 function Login({ onLogin, error }) {
-  const btnRef = useRef(null);
+  const [usuario, setUsuario] = useState("");
+  const [clave, setClave] = useState("");
 
-  useEffect(() => {
-    const init = () => {
-      if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (response) => {
-          if (response.credential) onLogin(response.credential);
-        },
-      });
-      window.google.accounts.id.renderButton(btnRef.current, {
-        theme: "filled_blue",
-        size: "large",
-        text: "signin_with",
-        shape: "pill",
-        width: 300,
-      });
-    };
-
-    if (window.google) {
-      init();
-    } else {
-      // Esperar a que cargue GSI
-      const interval = setInterval(() => {
-        if (window.google) { clearInterval(interval); init(); }
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, [onLogin]);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onLogin(usuario, clave);
+  };
 
   return (
     <div className="login-container">
       <div className="login-card">
         <h1>🔒 Panel de Administración</h1>
         <p>Denuncias Vía Pública — Santiago del Estero</p>
-        <p className="login-hint">
-          Iniciá sesión con tu cuenta de Google autorizada.
-        </p>
-        <div ref={btnRef} className="google-btn-wrapper"></div>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            placeholder="Usuario"
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
+            autoComplete="username"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={clave}
+            onChange={(e) => setClave(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          <button type="submit">Ingresar</button>
+        </form>
         {error && <p className="login-error">{error}</p>}
-        <p className="login-footer">
-          Solo los emails autorizados pueden acceder.
-        </p>
       </div>
     </div>
   );

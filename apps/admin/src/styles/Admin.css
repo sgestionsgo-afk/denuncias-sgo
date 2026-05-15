@@ -49,10 +49,42 @@ body {
   font-weight: 500;
 }
 
-.google-btn-wrapper {
+.login-form {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.85rem;
   margin: 1.5rem 0;
+}
+
+.login-form input {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.login-form input:focus {
+  border-color: #9D4EDD;
+}
+
+.login-form button {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: #9D4EDD;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-form button:hover {
+  background: #7B2FBE;
 }
 
 .login-error {
